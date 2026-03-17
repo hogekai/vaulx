@@ -1,0 +1,241 @@
+import type { MCPServer } from "@lynq/lynq";
+import {
+  encodeFunctionData,
+  erc20Abi,
+  formatEther,
+  formatUnits,
+  parseEther,
+  parseUnits,
+} from "viem";
+import { z } from "zod";
+import { getPublicClient } from "../client.js";
+import {
+  resolveChainId,
+  getChain,
+  getToken,
+  DEFAULT_CHAIN_ID,
+  WITHDRAW_TO,
+} from "../config.js";
+import type { PolicyGuard } from "../guard/policy-guard.js";
+import type { TxLog } from "../log/tx-log.js";
+import type { Signer } from "../signer/types.js";
+
+interface WithdrawCtx {
+  signer: Signer;
+  policyGuard: PolicyGuard;
+  txLog: TxLog;
+}
+
+export function registerWithdraw(server: MCPServer, ctx: WithdrawCtx) {
+  server.tool(
+    "withdraw",
+    {
+      description:
+        "Withdraw tokens from the agent wallet. Defaults to full balance if amount is omitted.",
+      input: z.object({
+        to: z
+          .string()
+          .optional()
+          .describe("Recipient address. Defaults to WITHDRAW_TO env var."),
+        token: z.string().default("ETH").describe("Token symbol"),
+        amount: z
+          .string()
+          .optional()
+          .describe("Amount to withdraw. Omit for full balance."),
+        chainId: z
+          .union([z.string(), z.number()])
+          .optional()
+          .describe("Chain ID or network alias"),
+        network: z
+          .string()
+          .optional()
+          .describe("Network alias (e.g. 'base-sepolia')"),
+      }),
+    },
+    async (args, c) => {
+      // Resolve recipient
+      const to = (args.to as `0x${string}`) ?? WITHDRAW_TO;
+      if (!to) {
+        return c.error(
+          "No recipient specified and WITHDRAW_TO env var is not set.",
+        );
+      }
+
+      const chainId = resolveChainId(
+        args.chainId ?? args.network ?? DEFAULT_CHAIN_ID,
+      );
+      const isNative = args.token.toUpperCase() === "ETH";
+
+      if (isNative) {
+        return withdrawNative(ctx, c, to, chainId, args.amount);
+      } else {
+        return withdrawToken(ctx, c, to, chainId, args.token, args.amount);
+      }
+    },
+  );
+}
+
+async function withdrawNative(
+  ctx: WithdrawCtx,
+  c: any,
+  to: `0x${string}`,
+  chainId: number,
+  amount?: string,
+) {
+  const balance = await ctx.signer.getBalance(chainId);
+
+  let value: bigint;
+  if (amount) {
+    value = parseEther(amount);
+    if (value > balance) {
+      return c.error(
+        `Insufficient balance. Have: ${formatEther(balance)} ETH, Need: ${amount} ETH`,
+      );
+    }
+  } else {
+    // Full withdrawal — subtract gas with 10% buffer
+    const address = await ctx.signer.getAddress();
+    const pub = getPublicClient(chainId);
+    const gasEstimate = await pub.estimateGas({
+      account: address,
+      to,
+      value: balance,
+    });
+    const gasPrice = await pub.getGasPrice();
+    const gasCost = gasEstimate * gasPrice;
+    const buffer = gasCost / 10n;
+    value = balance - gasCost - buffer;
+
+    if (value <= 0n) {
+      return c.error(
+        `Balance too low to cover gas. Balance: ${formatEther(balance)} ETH`,
+      );
+    }
+  }
+
+  // Policy check
+  const check = await ctx.policyGuard.check("withdraw", {
+    value,
+    to,
+    chainId,
+    token: "ETH",
+  });
+  if (!check.ok) {
+    return c.error(`Policy rejected: ${check.reason}`);
+  }
+
+  const hash = await ctx.signer.sendTransaction({ to, value, chainId });
+
+  await ctx.txLog.record({
+    hash,
+    chainId,
+    to,
+    value: value.toString(),
+    token: "ETH",
+    operation: "withdraw",
+    timestamp: new Date().toISOString(),
+    status: "sent",
+  });
+
+  const chain = getChain(chainId);
+  return c.json({
+    hash,
+    chainId,
+    amount: formatEther(value),
+    token: "ETH",
+    explorer: chain.blockExplorer
+      ? `${chain.blockExplorer}/tx/${hash}`
+      : undefined,
+    proof: { type: "tx_hash", value: hash },
+  });
+}
+
+async function withdrawToken(
+  ctx: WithdrawCtx,
+  c: any,
+  to: `0x${string}`,
+  chainId: number,
+  tokenSymbol: string,
+  amount?: string,
+) {
+  const token = getToken(chainId, tokenSymbol);
+  if (!token) {
+    return c.error(
+      `Token "${tokenSymbol}" not found on chain ${chainId}.`,
+    );
+  }
+
+  // Check gas balance
+  const ethBalance = await ctx.signer.getBalance(chainId);
+  if (ethBalance === 0n) {
+    return c.error("No native token balance for gas.");
+  }
+
+  const address = await ctx.signer.getAddress();
+  const pub = getPublicClient(chainId);
+
+  let rawAmount: bigint;
+  if (amount) {
+    rawAmount = parseUnits(amount, token.decimals);
+  } else {
+    // Full withdrawal — read token balance
+    const balanceData = await pub.readContract({
+      address: token.address,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [address],
+    });
+    rawAmount = balanceData as bigint;
+
+    if (rawAmount === 0n) {
+      return c.error(`No ${token.symbol} balance to withdraw.`);
+    }
+  }
+
+  // Policy check
+  const check = await ctx.policyGuard.check("withdraw", {
+    value: rawAmount,
+    to,
+    chainId,
+    token: token.symbol,
+  });
+  if (!check.ok) {
+    return c.error(`Policy rejected: ${check.reason}`);
+  }
+
+  const data = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "transfer",
+    args: [to, rawAmount],
+  });
+
+  const hash = await ctx.signer.sendTransaction({
+    to: token.address,
+    value: 0n,
+    chainId,
+    data,
+  });
+
+  await ctx.txLog.record({
+    hash,
+    chainId,
+    to,
+    value: rawAmount.toString(),
+    token: token.symbol,
+    operation: "withdraw",
+    timestamp: new Date().toISOString(),
+    status: "sent",
+  });
+
+  const chain = getChain(chainId);
+  return c.json({
+    hash,
+    chainId,
+    amount: formatUnits(rawAmount, token.decimals),
+    token: token.symbol,
+    explorer: chain.blockExplorer
+      ? `${chain.blockExplorer}/tx/${hash}`
+      : undefined,
+    proof: { type: "tx_hash", value: hash },
+  });
+}

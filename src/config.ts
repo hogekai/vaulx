@@ -61,9 +61,52 @@ export function getRpcUrl(chainId: number): string {
   return getChain(chainId).rpc;
 }
 
-export const PRIVATE_KEY = process.env.PRIVATE_KEY as `0x${string}` | undefined;
+// Token registry for ERC20 support
+export interface TokenInfo {
+  address: `0x${string}`;
+  decimals: number;
+  symbol: string;
+}
+
+export const TOKENS: Record<number, Record<string, TokenInfo>> = {
+  84532: {
+    USDC: {
+      address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      decimals: 6,
+      symbol: "USDC",
+    },
+  },
+  11155111: {
+    USDC: {
+      address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      decimals: 6,
+      symbol: "USDC",
+    },
+  },
+};
+
+export function getToken(
+  chainId: number,
+  symbol: string,
+): TokenInfo | undefined {
+  return TOKENS[chainId]?.[symbol.toUpperCase()];
+}
+
+// Environment variables
+export const PRIVATE_KEY = process.env.PRIVATE_KEY as
+  | `0x${string}`
+  | undefined;
 export const DEFAULT_CHAIN_ID = Number(process.env.DEFAULT_CHAIN_ID) || 84532;
 export const WALLET_PORT = Number(process.env.WALLET_PORT) || 18420;
 export const WALLET_AUTH_TOKEN = process.env.WALLET_AUTH_TOKEN || "";
 export const WALLET_POLICY = process.env.WALLET_POLICY || "";
-export const WITHDRAW_TO = process.env.WITHDRAW_TO as `0x${string}` | undefined;
+export const WITHDRAW_TO = process.env.WITHDRAW_TO as
+  | `0x${string}`
+  | undefined;
+export const WALLET_MODE = (process.env.WALLET_MODE || "env") as
+  | "env"
+  | "browser";
+export const WALLET_STORE = (process.env.WALLET_STORE || "sqlite") as
+  | "memory"
+  | "sqlite";
+export const WALLET_DB = process.env.WALLET_DB || "./vaulx.db";

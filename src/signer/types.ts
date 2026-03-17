@@ -6,7 +6,8 @@ export interface TxParams {
 }
 
 export interface Signer {
-  readonly address: `0x${string}`;
+  readonly mode: "env" | "browser";
+  getAddress(): Promise<`0x${string}`>;
   sendTransaction(params: TxParams): Promise<`0x${string}`>;
   signMessage(message: string): Promise<`0x${string}`>;
   getBalance(chainId: number): Promise<bigint>;

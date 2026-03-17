@@ -7,6 +7,6 @@ export function registerAddressResource(server: MCPServer, signer: Signer) {
     description: "The wallet address managed by this server",
     mimeType: "text/plain",
   }, async () => ({
-    text: signer.address,
+    text: await signer.getAddress(),
   }));
 }

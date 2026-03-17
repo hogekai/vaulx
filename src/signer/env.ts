@@ -1,26 +1,8 @@
-import {
-  createPublicClient,
-  createWalletClient,
-  http,
-  type Chain,
-} from "viem";
+import { createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { baseSepolia, base, mainnet, sepolia } from "viem/chains";
+import { getViemChain, getPublicClient } from "../client.js";
 import { PRIVATE_KEY, getRpcUrl } from "../config.js";
 import type { Signer, TxParams } from "./types.js";
-
-const VIEM_CHAINS: Record<number, Chain> = {
-  1: mainnet,
-  8453: base,
-  84532: baseSepolia,
-  11155111: sepolia,
-};
-
-function getViemChain(chainId: number): Chain {
-  const chain = VIEM_CHAINS[chainId];
-  if (!chain) throw new Error(`No viem chain for chainId ${chainId}`);
-  return chain;
-}
 
 class NonceManager {
   private pending: bigint | null = null;
@@ -51,13 +33,6 @@ export function createEnvSigner(): Signer {
   const account = privateKeyToAccount(PRIVATE_KEY);
   const nonces = new NonceManager();
 
-  function getPublicClient(chainId: number) {
-    return createPublicClient({
-      chain: getViemChain(chainId),
-      transport: http(getRpcUrl(chainId)),
-    });
-  }
-
   function getWalletClient(chainId: number) {
     return createWalletClient({
       account,
@@ -67,7 +42,11 @@ export function createEnvSigner(): Signer {
   }
 
   return {
-    address: account.address,
+    mode: "env" as const,
+
+    async getAddress(): Promise<`0x${string}`> {
+      return account.address;
+    },
 
     async sendTransaction(params: TxParams): Promise<`0x${string}`> {
       const pub = getPublicClient(params.chainId);

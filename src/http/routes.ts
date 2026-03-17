@@ -4,8 +4,12 @@ import { resolveChainId, getChain, DEFAULT_CHAIN_ID } from "../config.js";
 import type { PolicyGuard } from "../guard/policy-guard.js";
 import type { TxLog } from "../log/tx-log.js";
 import type { Signer } from "../signer/types.js";
+import type { BrowserSignerState } from "../signer/browser.js";
 import { validateAuth } from "./auth.js";
 import { depositPage } from "./deposit.js";
+import { connectPage } from "./pages/connect.js";
+import { confirmPage } from "./pages/confirm.js";
+import { signPage } from "./pages/sign.js";
 
 export interface WalletContext {
   signer: Signer;
@@ -42,6 +46,13 @@ function parseBody(req: IncomingMessage): Promise<unknown> {
   });
 }
 
+function getBrowserState(signer: Signer): BrowserSignerState | null {
+  if (signer.mode === "browser" && "state" in signer) {
+    return (signer as any).state as BrowserSignerState;
+  }
+  return null;
+}
+
 export async function handleRequest(
   req: IncomingMessage,
   res: ServerResponse,
@@ -53,20 +64,178 @@ export async function handleRequest(
 
   // Health check — no auth
   if (method === "GET" && path === "/health") {
-    jsonResponse(res, 200, {
-      status: "ok",
-      address: ctx.signer.address,
-    });
+    const address =
+      ctx.signer.mode === "browser"
+        ? getBrowserState(ctx.signer)?.connectedAddress ?? null
+        : await ctx.signer.getAddress();
+    jsonResponse(res, 200, { status: "ok", address });
     return;
   }
 
   // Deposit page — no auth
   if (method === "GET" && path === "/deposit") {
-    htmlResponse(res, depositPage(ctx.signer.address, DEFAULT_CHAIN_ID));
+    const address =
+      ctx.signer.mode === "browser"
+        ? getBrowserState(ctx.signer)?.connectedAddress ?? "Not connected"
+        : await ctx.signer.getAddress();
+    htmlResponse(res, depositPage(address, DEFAULT_CHAIN_ID));
     return;
   }
 
-  // All other routes require auth
+  // --- Browser mode routes (no auth, nonce-protected) ---
+  const browserState = getBrowserState(ctx.signer);
+
+  // GET /connect/:nonce
+  const connectMatch = path.match(/^\/connect\/([a-f0-9-]+)$/);
+  if (method === "GET" && connectMatch) {
+    htmlResponse(res, connectPage(connectMatch[1]));
+    return;
+  }
+
+  // POST /api/connect/:nonce
+  const apiConnectMatch = path.match(/^\/api\/connect\/([a-f0-9-]+)$/);
+  if (method === "POST" && apiConnectMatch) {
+    if (!browserState) {
+      jsonResponse(res, 400, { error: "Not in browser mode" });
+      return;
+    }
+    const nonce = apiConnectMatch[1];
+    const pending = browserState.pendingConnects.get(nonce);
+    if (!pending) {
+      jsonResponse(res, 404, { error: "Connection request not found or expired" });
+      return;
+    }
+    const body = (await parseBody(req)) as { address: string };
+    browserState.pendingConnects.delete(nonce);
+    pending.resolve(body.address as `0x${string}`);
+    jsonResponse(res, 200, { ok: true });
+    return;
+  }
+
+  // GET /confirm/:nonce
+  const confirmMatch = path.match(/^\/confirm\/([a-f0-9-]+)$/);
+  if (method === "GET" && confirmMatch) {
+    htmlResponse(res, confirmPage(confirmMatch[1]));
+    return;
+  }
+
+  // GET /api/pending/:nonce
+  const pendingMatch = path.match(/^\/api\/pending\/([a-f0-9-]+)$/);
+  if (method === "GET" && pendingMatch) {
+    if (!browserState) {
+      jsonResponse(res, 400, { error: "Not in browser mode" });
+      return;
+    }
+    const nonce = pendingMatch[1];
+    const pending = browserState.pendingTxs.get(nonce);
+    if (!pending) {
+      jsonResponse(res, 404, { error: "Transaction not found or expired" });
+      return;
+    }
+    const chain = getChain(pending.params.chainId);
+    jsonResponse(res, 200, {
+      to: pending.params.to,
+      value: pending.params.value.toString(),
+      displayValue: formatEther(pending.params.value) + " ETH",
+      chainId: pending.params.chainId,
+      chainName: chain.name,
+      data: pending.params.data ?? null,
+    });
+    return;
+  }
+
+  // POST /api/confirm/:nonce
+  const apiConfirmMatch = path.match(/^\/api\/confirm\/([a-f0-9-]+)$/);
+  if (method === "POST" && apiConfirmMatch) {
+    if (!browserState) {
+      jsonResponse(res, 400, { error: "Not in browser mode" });
+      return;
+    }
+    const nonce = apiConfirmMatch[1];
+    const pending = browserState.pendingTxs.get(nonce);
+    if (!pending) {
+      jsonResponse(res, 404, { error: "Transaction not found or expired" });
+      return;
+    }
+    const body = (await parseBody(req)) as { hash: string };
+    browserState.pendingTxs.delete(nonce);
+    pending.resolve(body.hash as `0x${string}`);
+    jsonResponse(res, 200, { ok: true });
+    return;
+  }
+
+  // POST /api/reject/:nonce
+  const apiRejectMatch = path.match(/^\/api\/reject\/([a-f0-9-]+)$/);
+  if (method === "POST" && apiRejectMatch) {
+    if (!browserState) {
+      jsonResponse(res, 400, { error: "Not in browser mode" });
+      return;
+    }
+    const nonce = apiRejectMatch[1];
+    // Check both pending tx and pending sign
+    const pendingTx = browserState.pendingTxs.get(nonce);
+    if (pendingTx) {
+      browserState.pendingTxs.delete(nonce);
+      pendingTx.reject(new Error("Transaction rejected by user"));
+      jsonResponse(res, 200, { ok: true });
+      return;
+    }
+    const pendingSign = browserState.pendingSigns.get(nonce);
+    if (pendingSign) {
+      browserState.pendingSigns.delete(nonce);
+      pendingSign.reject(new Error("Signing rejected by user"));
+      jsonResponse(res, 200, { ok: true });
+      return;
+    }
+    jsonResponse(res, 404, { error: "Request not found or expired" });
+    return;
+  }
+
+  // GET /sign/:nonce
+  const signMatch = path.match(/^\/sign\/([a-f0-9-]+)$/);
+  if (method === "GET" && signMatch) {
+    htmlResponse(res, signPage(signMatch[1]));
+    return;
+  }
+
+  // GET /api/pending-sign/:nonce
+  const pendingSignMatch = path.match(/^\/api\/pending-sign\/([a-f0-9-]+)$/);
+  if (method === "GET" && pendingSignMatch) {
+    if (!browserState) {
+      jsonResponse(res, 400, { error: "Not in browser mode" });
+      return;
+    }
+    const nonce = pendingSignMatch[1];
+    const pending = browserState.pendingSigns.get(nonce);
+    if (!pending) {
+      jsonResponse(res, 404, { error: "Sign request not found or expired" });
+      return;
+    }
+    jsonResponse(res, 200, { message: pending.message });
+    return;
+  }
+
+  // POST /api/sign/:nonce
+  const apiSignMatch = path.match(/^\/api\/sign\/([a-f0-9-]+)$/);
+  if (method === "POST" && apiSignMatch) {
+    if (!browserState) {
+      jsonResponse(res, 400, { error: "Not in browser mode" });
+      return;
+    }
+    const nonce = apiSignMatch[1];
+    const pending = browserState.pendingSigns.get(nonce);
+    if (!pending) {
+      jsonResponse(res, 404, { error: "Sign request not found or expired" });
+      return;
+    }
+    const body = (await parseBody(req)) as { signature: string };
+    browserState.pendingSigns.delete(nonce);
+    pending.resolve(body.signature as `0x${string}`);
+    jsonResponse(res, 200, { ok: true });
+    return;
+  }
+
+  // --- Authenticated routes ---
   if (!validateAuth(req)) {
     jsonResponse(res, 401, { error: "Unauthorized" });
     return;
@@ -74,7 +243,7 @@ export async function handleRequest(
 
   // GET /address
   if (method === "GET" && path === "/address") {
-    jsonResponse(res, 200, { address: ctx.signer.address });
+    jsonResponse(res, 200, { address: await ctx.signer.getAddress() });
     return;
   }
 

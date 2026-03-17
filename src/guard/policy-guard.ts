@@ -1,10 +1,17 @@
 import type { Store } from "@lynq/lynq";
 import type { SpendingPolicy } from "../policy.js";
 
+export interface PolicyCheckParams {
+  value?: bigint;
+  to?: `0x${string}`;
+  chainId?: number;
+  token?: string;
+}
+
 export interface PolicyGuard {
   check(
     operation: string,
-    params: { value: bigint; to: `0x${string}`; chainId: number },
+    params: PolicyCheckParams,
   ): Promise<{ ok: true } | { ok: false; reason: string }>;
 }
 
@@ -30,60 +37,74 @@ export function createPolicyGuard(
         };
       }
 
-      // Check blocked recipients
-      const to = params.to.toLowerCase();
-      if (policy.blockedRecipients?.some((r) => r.toLowerCase() === to)) {
-        return { ok: false, reason: `Recipient ${params.to} is blocked` };
-      }
-
-      // Check allowed recipients (if set)
-      if (
-        policy.allowedRecipients &&
-        policy.allowedRecipients.length > 0 &&
-        !policy.allowedRecipients.some((r) => r.toLowerCase() === to)
-      ) {
+      // Check token allowed
+      if (params.token && !policy.allowedTokens.includes(params.token)) {
         return {
           ok: false,
-          reason: `Recipient ${params.to} not in allowed list`,
+          reason: `Token "${params.token}" not allowed. Allowed: ${policy.allowedTokens.join(", ")}`,
         };
       }
 
-      // Check per-tx limit
-      const maxPerTx = BigInt(policy.maxPerTx);
-      if (params.value > maxPerTx) {
-        return {
-          ok: false,
-          reason: `Exceeds per-tx limit: ${params.value} > ${maxPerTx}`,
-        };
-      }
+      // Recipient and value checks only apply when provided
+      if (params.to) {
+        const to = params.to.toLowerCase();
 
-      // Check daily limit
-      if (policy.maxPerDay) {
-        const maxPerDay = BigInt(policy.maxPerDay);
-        const today = new Date().toISOString().slice(0, 10);
-        const dailyKey = `daily:${params.chainId}:${today}`;
-        const current = BigInt(
-          (await store.get<string>(dailyKey)) ?? "0",
-        );
-        if (current + params.value > maxPerDay) {
+        // Check blocked recipients
+        if (policy.blockedRecipients?.some((r) => r.toLowerCase() === to)) {
+          return { ok: false, reason: `Recipient ${params.to} is blocked` };
+        }
+
+        // Check allowed recipients (if set)
+        if (
+          policy.allowedRecipients &&
+          policy.allowedRecipients.length > 0 &&
+          !policy.allowedRecipients.some((r) => r.toLowerCase() === to)
+        ) {
           return {
             ok: false,
-            reason: `Exceeds daily limit: ${current + params.value} > ${maxPerDay}`,
+            reason: `Recipient ${params.to} not in allowed list`,
           };
         }
       }
 
-      // Check total limit
-      if (policy.maxTotal) {
-        const maxTotal = BigInt(policy.maxTotal);
-        const total = BigInt(
-          (await store.get<string>("total-spent")) ?? "0",
-        );
-        if (total + params.value > maxTotal) {
+      if (params.value !== undefined) {
+        // Check per-tx limit
+        const maxPerTx = BigInt(policy.maxPerTx);
+        if (params.value > maxPerTx) {
           return {
             ok: false,
-            reason: `Exceeds total limit: ${total + params.value} > ${maxTotal}`,
+            reason: `Exceeds per-tx limit: ${params.value} > ${maxPerTx}`,
           };
+        }
+
+        // Check daily limit
+        if (policy.maxPerDay && params.chainId !== undefined) {
+          const maxPerDay = BigInt(policy.maxPerDay);
+          const today = new Date().toISOString().slice(0, 10);
+          const dailyKey = `daily:${params.chainId}:${today}`;
+          const current = BigInt(
+            (await store.get<string>(dailyKey)) ?? "0",
+          );
+          if (current + params.value > maxPerDay) {
+            return {
+              ok: false,
+              reason: `Exceeds daily limit: ${current + params.value} > ${maxPerDay}`,
+            };
+          }
+        }
+
+        // Check total limit
+        if (policy.maxTotal) {
+          const maxTotal = BigInt(policy.maxTotal);
+          const total = BigInt(
+            (await store.get<string>("total-spent")) ?? "0",
+          );
+          if (total + params.value > maxTotal) {
+            return {
+              ok: false,
+              reason: `Exceeds total limit: ${total + params.value} > ${maxTotal}`,
+            };
+          }
         }
       }
 
