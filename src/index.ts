@@ -16,6 +16,10 @@ import { registerTokenResources } from "./resources/tokens.js";
 import { registerTransactionsResource } from "./resources/transactions.js";
 import { TokenRegistry } from "./token/registry.js";
 import { registerApproveToken } from "./tools/approve-token.js";
+import { registerGetAddress } from "./tools/get-address.js";
+import { registerGetBalance } from "./tools/get-balance.js";
+import { registerGetSpending } from "./tools/get-spending.js";
+import { registerGetTransactions } from "./tools/get-transactions.js";
 import { registerRevokeToken } from "./tools/revoke-token.js";
 import { registerSendToken } from "./tools/send-token.js";
 import { registerSendTransaction } from "./tools/send-transaction.js";
@@ -62,6 +66,10 @@ registerSignMessage(server, { chainManager, policyGuard });
 registerWithdraw(server, toolCtx);
 registerApproveToken(server, toolCtx);
 registerRevokeToken(server, toolCtx);
+registerGetBalance(server, { chainManager, tokenRegistry });
+registerGetAddress(server, chainManager);
+registerGetTransactions(server, txLog);
+registerGetSpending(server, { chainManager, policyGuard, store });
 
 if (ENABLE_SWAP) {
 	registerSwapToken(server, toolCtx);
@@ -105,5 +113,8 @@ if (!TESTNET_CHAINS.has(chainManager.defaultChainId)) {
 	console.error("\u26a0\ufe0f  Mainnet detected. vaulx has NOT been security audited.");
 }
 
-// Start both transports
-await Promise.all([server.stdio(), startHttpServer({ chainManager, policyGuard, txLog })]);
+// Start both transports (HTTP failure must not kill stdio)
+startHttpServer({ chainManager, policyGuard, txLog }).catch((err) => {
+	console.error(`[vaulx] HTTP server failed: ${err instanceof Error ? err.message : err}`);
+});
+await server.stdio();

@@ -109,63 +109,78 @@ export function registerTokenResources(
 		},
 	);
 
-	// All balances for a chain (native + registered ERC20s)
+	// All balances — shared handler
+	const balancesHandler = async (uri: string) => {
+		const parts = uri.split("/");
+		const last = parts[parts.length - 1];
+		const chainId = last && last !== "balances" ? Number(last) : chainManager.defaultChainId;
+
+		const signer = await chainManager.getSigner(chainId);
+		const address = await signer.getAddress();
+		const pub = chainManager.getPublicClient(chainId);
+
+		const nativeBalance = await signer.getBalance(chainId);
+		const balances: Array<{
+			symbol: string;
+			name: string;
+			balance: string;
+			raw: string;
+			type: "native" | "erc20";
+		}> = [
+			{
+				symbol: "ETH",
+				name: "Ether",
+				balance: formatEther(nativeBalance),
+				raw: nativeBalance.toString(),
+				type: "native",
+			},
+		];
+
+		const tokens = tokenRegistry.list(chainId);
+		for (const token of tokens) {
+			try {
+				const bal = await pub.readContract({
+					address: token.address,
+					abi: erc20Abi,
+					functionName: "balanceOf",
+					args: [address],
+				});
+				balances.push({
+					symbol: token.symbol,
+					name: token.name,
+					balance: formatUnits(bal, token.decimals),
+					raw: bal.toString(),
+					type: "erc20",
+				});
+			} catch {
+				// Contract call failed — skip token
+			}
+		}
+
+		return {
+			text: JSON.stringify({ chainId, address, balances }),
+		};
+	};
+
+	// Fixed URI for default chain (shows up in resources/list)
+	server.resource(
+		"wallet://balances",
+		{
+			name: "All Balances",
+			description: "Native + all registered ERC20 token balances on the default chain",
+			mimeType: "application/json",
+		},
+		balancesHandler,
+	);
+
+	// Template URI for specific chain
 	server.resource(
 		"wallet://balances/{chainId}",
 		{
-			name: "All Balances",
-			description: "Native + all registered ERC20 token balances on a chain",
+			name: "All Balances (by chain)",
+			description: "Native + all registered ERC20 token balances on a given chain",
 			mimeType: "application/json",
 		},
-		async (uri) => {
-			const parts = uri.split("/");
-			const chainId = Number(parts[parts.length - 1]);
-
-			const signer = await chainManager.getSigner(chainId);
-			const address = await signer.getAddress();
-			const pub = chainManager.getPublicClient(chainId);
-
-			const nativeBalance = await signer.getBalance(chainId);
-			const balances: Array<{
-				symbol: string;
-				name: string;
-				balance: string;
-				raw: string;
-				type: "native" | "erc20";
-			}> = [
-				{
-					symbol: "ETH",
-					name: "Ether",
-					balance: formatEther(nativeBalance),
-					raw: nativeBalance.toString(),
-					type: "native",
-				},
-			];
-
-			const tokens = tokenRegistry.list(chainId);
-			for (const token of tokens) {
-				try {
-					const bal = await pub.readContract({
-						address: token.address,
-						abi: erc20Abi,
-						functionName: "balanceOf",
-						args: [address],
-					});
-					balances.push({
-						symbol: token.symbol,
-						name: token.name,
-						balance: formatUnits(bal, token.decimals),
-						raw: bal.toString(),
-						type: "erc20",
-					});
-				} catch {
-					// Contract call failed — skip token
-				}
-			}
-
-			return {
-				text: JSON.stringify({ chainId, address, balances }),
-			};
-		},
+		balancesHandler,
 	);
 }

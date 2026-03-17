@@ -23,26 +23,27 @@ export function registerSendToken(server: MCPServer, ctx: SendTokenCtx) {
 		{
 			description:
 				"Send an ERC20 token (e.g. USDC) on an EVM chain. Returns tx hash and explorer link.",
-			input: z
-				.object({
-					to: z.string().optional().describe("Recipient address (0x...)"),
-					recipient: z.string().optional().describe("Alias for 'to' (agentPayment compat)"),
-					value: z.string().optional().describe("Amount in token units (e.g. '10' for 10 USDC)"),
-					amount: z.string().optional().describe("Alias for 'value' (agentPayment compat)"),
-					token: z.string().describe("Token symbol (e.g. 'USDC')"),
-					chainId: z
-						.union([z.string(), z.number()])
-						.optional()
-						.describe("Chain ID or network alias"),
-					network: z.string().optional().describe("Network alias (e.g. 'base-sepolia')"),
-				})
-				.refine((d) => d.to || d.recipient, "to or recipient required")
-				.refine((d) => d.value || d.amount, "value or amount required"),
+			input: z.object({
+				to: z.string().optional().describe("Recipient address (0x...)"),
+				recipient: z.string().optional().describe("Alias for 'to' (agentPayment compat)"),
+				value: z.string().optional().describe("Amount in token units (e.g. '10' for 10 USDC)"),
+				amount: z.string().optional().describe("Alias for 'value' (agentPayment compat)"),
+				token: z.string().describe("Token symbol (e.g. 'USDC')"),
+				chainId: z
+					.union([z.string(), z.number()])
+					.optional()
+					.describe("Chain ID or network alias"),
+				network: z.string().optional().describe("Network alias (e.g. 'base-sepolia')"),
+			}),
 		},
 		async (args, c) => {
 			try {
-				const to = validateAddress((args.to || args.recipient)!);
-				const tokenAmount = validateAmount((args.value || args.amount)!, "value");
+				const rawTo = args.to || args.recipient;
+				if (!rawTo) return c.error("[VALIDATION] to or recipient required");
+				const rawValue = args.value || args.amount;
+				if (!rawValue) return c.error("[VALIDATION] value or amount required");
+				const to = validateAddress(rawTo);
+				const tokenAmount = validateAmount(rawValue, "value");
 				const chainId = resolveChainId(args.chainId ?? args.network ?? DEFAULT_CHAIN_ID);
 				const signer = await ctx.chainManager.getSigner(chainId);
 

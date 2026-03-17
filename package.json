@@ -20,7 +20,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@lynq/lynq": "^0.11.1",
+    "@lynq/lynq": "^0.11.3",
     "@lynq/store-sqlite": "^0.1.1",
     "better-sqlite3": "^11.10.0",
     "permissionless": "^0.3.4",
