@@ -1,11 +1,12 @@
-// TODO(phase6): Extract to helpers/execute-tx.ts
-// This handler duplicates http/routes.ts /api/send-transaction
 import type { MCPServer } from "@lynq/lynq";
 import { formatEther, parseEther } from "viem";
 import { z } from "zod";
 import type { ChainManager } from "../chain/manager.js";
-import { DEFAULT_CHAIN_ID, getChain, resolveChainId } from "../config.js";
+import { DEFAULT_CHAIN_ID, resolveChainId } from "../config.js";
+import { VaulxError } from "../errors.js";
 import type { PolicyGuard } from "../guard/policy-guard.js";
+import { executeTx } from "../helpers/execute-tx.js";
+import { validateAddress, validateAmount } from "../helpers/validate.js";
 import type { TxLog } from "../log/tx-log.js";
 
 interface SendTransactionCtx {
@@ -36,52 +37,39 @@ export function registerSendTransaction(server: MCPServer, ctx: SendTransactionC
 				.refine((d) => d.value || d.amount, "value or amount required"),
 		},
 		async (args, c) => {
-			const to = (args.to || args.recipient) as `0x${string}`;
-			const ethValue = args.value || args.amount!;
-			const chainId = resolveChainId(args.chainId ?? args.network ?? DEFAULT_CHAIN_ID);
-			const value = parseEther(ethValue);
-			const signer = await ctx.chainManager.getSigner(chainId);
+			try {
+				const to = validateAddress((args.to || args.recipient)!);
+				const ethValue = validateAmount((args.value || args.amount)!, "value");
+				const chainId = resolveChainId(args.chainId ?? args.network ?? DEFAULT_CHAIN_ID);
+				const value = parseEther(ethValue);
+				const signer = await ctx.chainManager.getSigner(chainId);
 
-			// Check balance (skip gas check with paymaster)
-			if (!signer.hasPaymaster) {
-				const balance = await signer.getBalance(chainId);
-				if (balance < value) {
-					return c.error(
-						`Insufficient balance. Have: ${formatEther(balance)} ETH, Need: ${ethValue} ETH`,
-					);
+				// Gas check (tool-specific: native token, check full balance)
+				if (!signer.hasPaymaster) {
+					const balance = await signer.getBalance(chainId);
+					if (balance < value) {
+						return c.error(
+							`[INSUFFICIENT_BALANCE] Have: ${formatEther(balance)} ETH, Need: ${ethValue} ETH`,
+						);
+					}
 				}
+
+				const result = await executeTx(
+					{
+						operation: "send",
+						txParams: { to, value, chainId },
+						token: args.token.toUpperCase(),
+					},
+					{ signer, policyGuard: ctx.policyGuard, txLog: ctx.txLog },
+				);
+
+				return c.json(result);
+			} catch (e) {
+				if (e instanceof VaulxError) {
+					return c.error(`[${e.code}] ${e.message}`);
+				}
+				return c.error(`[SIGNER_ERROR] ${e instanceof Error ? e.message : "Unknown error"}`);
 			}
-
-			// Policy check
-			const check = await ctx.policyGuard.check("send", {
-				value,
-				to,
-				chainId,
-			});
-			if (!check.ok) {
-				return c.error(`Policy rejected: ${check.reason}`);
-			}
-
-			const hash = await signer.sendTransaction({ to, value, chainId });
-
-			await ctx.txLog.record({
-				hash,
-				chainId,
-				to,
-				value: value.toString(),
-				token: args.token,
-				operation: "send",
-				timestamp: new Date().toISOString(),
-				status: "sent",
-			});
-
-			const chain = getChain(chainId);
-			return c.json({
-				hash,
-				chainId,
-				explorer: chain.blockExplorer ? `${chain.blockExplorer}/tx/${hash}` : undefined,
-				proof: { type: "tx_hash", value: hash },
-			});
 		},
 	);
 }
