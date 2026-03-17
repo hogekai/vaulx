@@ -1,11 +1,14 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { privateKeyToAccount } from "viem/accounts";
 import { CHAINS, NETWORK_ALIASES } from "../config.js";
 import { addressBox } from "./qr.js";
 import { askWithDefault, close, select } from "./prompts.js";
 import { isAlreadyRegistered, registerHook, registerMCP } from "./register.js";
+
+const VAULX_HOME = path.join(os.homedir(), ".vaulx");
 
 interface InitOptions {
 	chain?: string;
@@ -62,10 +65,14 @@ export async function init(options: InitOptions = {}): Promise<void> {
 	const address = account.address;
 	const authToken = crypto.randomUUID();
 	const port = 18420;
-	const vaulxDir = process.cwd();
+
+	// ~/.vaulx/ ディレクトリ作成
+	if (!fs.existsSync(VAULX_HOME)) {
+		fs.mkdirSync(VAULX_HOME, { recursive: true });
+	}
 
 	// 4. .env 書き出し（秘密鍵はここだけ）
-	const envPath = path.join(vaulxDir, ".env");
+	const envPath = path.join(VAULX_HOME, ".env");
 	if (fs.existsSync(envPath) && !options.nonInteractive) {
 		const overwrite = await askWithDefault(".env already exists. Overwrite? (y/N)", "N");
 		if (overwrite.toLowerCase() !== "y") {
@@ -80,7 +87,7 @@ export async function init(options: InitOptions = {}): Promise<void> {
 	});
 
 	// 5. wallet-policy.json
-	const policyPath = path.join(vaulxDir, "wallet-policy.json");
+	const policyPath = path.join(VAULX_HOME, "wallet-policy.json");
 	const policyExists = fs.existsSync(policyPath);
 	if (!policyExists) {
 		fs.writeFileSync(policyPath, buildPolicyFile(maxPerTxWei, maxPerDayWei));
@@ -92,12 +99,12 @@ export async function init(options: InitOptions = {}): Promise<void> {
 	console.error("✔ Agent wallet created\n");
 	console.error(addressBox(address, `${chain.name} (${chainId})`, "env"));
 	console.error("");
-	console.error("  .env written (chmod 600)");
-	console.error(`  wallet-policy.json ${policyExists ? "already exists" : "written"}`);
+	console.error(`  ${envPath} written (chmod 600)`);
+	console.error(`  ${policyPath} ${policyExists ? "already exists" : "written"}`);
 	console.error("");
 
 	// 7. Claude Code 登録（秘密鍵は渡さない）
-	const regOpts = { vaulxDir, chainId, authToken, port };
+	const regOpts = { chainId, authToken, port };
 	const existing = isAlreadyRegistered();
 
 	if (!options.nonInteractive) {
@@ -122,9 +129,9 @@ export async function init(options: InitOptions = {}): Promise<void> {
 
 	// 8. 警告
 	console.error("");
-	console.error("  ⚠️  Private key stored in .env (chmod 600)");
+	console.error(`  ⚠️  Private key stored in ~/.vaulx/.env (chmod 600)`);
 	console.error("     ~/.mcp.json contains the .env path only — no secrets.");
-	console.error("     Do NOT share .env or commit it to git.");
+	console.error("     Do NOT share ~/.vaulx/.env.");
 	console.error("");
 
 	// 9. Next steps
@@ -169,11 +176,11 @@ PRIVATE_KEY=${privateKey}
 WALLET_MODE=env
 DEFAULT_CHAIN_ID=${chainId}
 RPC_URL=${chain.rpc}
-WALLET_POLICY=./wallet-policy.json
+WALLET_POLICY=${path.join(VAULX_HOME, "wallet-policy.json")}
 WALLET_PORT=${port}
 WALLET_AUTH_TOKEN=${authToken}
 WALLET_STORE=sqlite
-WALLET_DB=./vaulx.db
+WALLET_DB=${path.join(VAULX_HOME, "vaulx.db")}
 `;
 }
 

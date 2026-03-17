@@ -1,9 +1,14 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-interface RegisterOptions {
-	vaulxDir: string;
+const VAULX_HOME = path.join(os.homedir(), ".vaulx");
+
+/** パッケージルート（src/cli/register.ts → ../../） */
+const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+export interface RegisterOptions {
 	chainId: number;
 	authToken: string;
 	port: number;
@@ -12,6 +17,7 @@ interface RegisterOptions {
 /**
  * ~/.mcp.json に vaulx を登録
  * 秘密鍵は入れない。.env ファイルパスだけ渡す。
+ * command は node + dist/start.js（tsx 不要）
  */
 export function registerMCP(options: RegisterOptions): void {
 	const mcpJsonPath = path.join(os.homedir(), ".mcp.json");
@@ -29,10 +35,10 @@ export function registerMCP(options: RegisterOptions): void {
 
 	mcpServers.vaulx = {
 		type: "stdio",
-		command: path.join(options.vaulxDir, "node_modules", ".bin", "tsx"),
-		args: [path.join(options.vaulxDir, "src", "start.ts")],
+		command: "node",
+		args: [path.join(PKG_ROOT, "dist", "start.js")],
 		env: {
-			VAULX_ENV_FILE: path.join(options.vaulxDir, ".env"),
+			VAULX_ENV_FILE: path.join(VAULX_HOME, ".env"),
 			WALLET_PORT: String(options.port),
 			WALLET_AUTH_TOKEN: options.authToken,
 		},
@@ -68,7 +74,7 @@ export function registerHook(options: RegisterOptions): void {
 	const hookCommand = [
 		`WALLET_URL=http://127.0.0.1:${options.port}`,
 		`WALLET_TOKEN=${options.authToken}`,
-		`node ${path.join(options.vaulxDir, "hooks", "handle-payment.js")}`,
+		`node ${path.join(PKG_ROOT, "hooks", "handle-payment.js")}`,
 	].join(" ");
 
 	const elicitations = hooks.Elicitation as Array<Record<string, unknown>>;
