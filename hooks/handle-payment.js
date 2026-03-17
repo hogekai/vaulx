@@ -23,6 +23,13 @@
 const WALLET_URL = process.env.WALLET_URL || "http://127.0.0.1:18420";
 const WALLET_TOKEN = process.env.WALLET_TOKEN || "";
 
+// ここだけ差し替えれば別プロトコルにも対応できる
+function detectPayment(input) {
+  const match = input.message?.match(/\[x-lynq-payment:(\{[^}]+\})\]/);
+  if (!match) return null;
+  return JSON.parse(match[1]);
+}
+
 // Read stdin
 let input = "";
 process.stdin.setEncoding("utf-8");
@@ -32,20 +39,13 @@ for await (const chunk of process.stdin) {
 
 try {
   const data = JSON.parse(input);
-  const message = data.message ?? "";
+  const payment = detectPayment(data);
 
-  // Detect payment elicitation by x-lynq-payment metadata tag.
-  // This pattern is set by lynq's agentPayment() middleware.
-  // If lynq changes this format, this hook will break.
-  // See: lynq/packages/lynq/src/middleware/agent-payment.ts
-  const metaMatch = message.match(/\[x-lynq-payment:(\{[^}]+\})\]/);
-
-  if (!metaMatch) {
-    // Not a payment elicitation — pass through (don't interfere)
+  if (!payment) {
     process.exit(0);
   }
 
-  const { recipient, amount, token, network } = JSON.parse(metaMatch[1]);
+  const { recipient, amount, token, network } = payment;
 
   console.error(
     `[vaulx] Payment requested: ${amount} ${token ?? "ETH"} to ${recipient} on ${network ?? "base-sepolia"}`,

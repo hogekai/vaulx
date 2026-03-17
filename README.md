@@ -101,6 +101,13 @@ npx @vaulx/vaulx setup
 
 Deploys an ERC-4337 smart account with Pimlico paymaster (gas-sponsored). Requires `PIMLICO_API_KEY`.
 
+## Auto-Payment Hook
+
+`hooks/handle-payment.js` は Claude Code の Elicitation フックとして動作し、lynq の `agentPayment()` が発行する `[x-lynq-payment:{...}]` メタデータを検出して自動支払いを行います。
+
+- **現在は lynq の agentPayment プロトコルに依存**
+- 支払い検出ロジックは `detectPayment()` 関数に分離されており、この関数を差し替えるだけで別プロトコルにも対応可能
+
 ## Security
 
 - Private key is stored only in `~/.vaulx/.env` (chmod 600)
