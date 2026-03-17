@@ -14,6 +14,11 @@ export interface TxRecord {
 export interface TxLog {
 	record(tx: TxRecord): Promise<void>;
 	list(): Promise<TxRecord[]>;
+	recent(n: number): Promise<TxRecord[]>;
+	byChain(chainId: number): Promise<TxRecord[]>;
+	byOperation(operation: string): Promise<TxRecord[]>;
+	/** Check if same to/value/chainId tx was sent within 10 seconds */
+	isDuplicate(params: { to: string; value: string; chainId: number }): Promise<boolean>;
 }
 
 export function createTxLog(store: Store): TxLog {
@@ -37,6 +42,37 @@ export function createTxLog(store: Store): TxLog {
 
 		async list(): Promise<TxRecord[]> {
 			return (await store.get<TxRecord[]>("tx-log")) ?? [];
+		},
+
+		async recent(n: number): Promise<TxRecord[]> {
+			const all = await this.list();
+			return all.slice(-n);
+		},
+
+		async byChain(chainId: number): Promise<TxRecord[]> {
+			const all = await this.list();
+			return all.filter((tx) => tx.chainId === chainId);
+		},
+
+		async byOperation(operation: string): Promise<TxRecord[]> {
+			const all = await this.list();
+			return all.filter((tx) => tx.operation === operation);
+		},
+
+		async isDuplicate(params: {
+			to: string;
+			value: string;
+			chainId: number;
+		}): Promise<boolean> {
+			const all = await this.list();
+			const now = Date.now();
+			return all.some(
+				(tx) =>
+					tx.to === params.to &&
+					tx.value === params.value &&
+					tx.chainId === params.chainId &&
+					now - new Date(tx.timestamp).getTime() < 10_000,
+			);
 		},
 	};
 }

@@ -49,7 +49,20 @@ export async function executeTx(
 		});
 	}
 
-	// 2. Send
+	// 2. Duplicate check
+	const dup = await txLog.isDuplicate({
+		to: txParams.to,
+		value: txParams.value.toString(),
+		chainId: txParams.chainId,
+	});
+	if (dup) {
+		throw new VaulxError(
+			"Duplicate transaction detected (same params within 10s)",
+			"TX_FAILED",
+		);
+	}
+
+	// 3. Send
 	let hash: `0x${string}`;
 	try {
 		hash = await signer.sendTransaction(txParams);
