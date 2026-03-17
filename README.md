@@ -103,10 +103,9 @@ Deploys an ERC-4337 smart account with Pimlico paymaster (gas-sponsored). Requir
 
 ## Auto-Payment Hook
 
-`hooks/handle-payment.js` は Claude Code の Elicitation フックとして動作し、lynq の `agentPayment()` が発行する `[x-lynq-payment:{...}]` メタデータを検出して自動支払いを行います。
+`hooks/handle-payment.js` is a Claude Code elicitation hook that works seamlessly with [lynq's `agentPayment()`](https://hogekai.github.io/lynq/payment/agent-payment.html). When a lynq server requests payment, vaulx automatically detects the `[x-lynq-payment:{...}]` metadata and pays on behalf of the agent — no manual confirmation needed.
 
-- **Currently depends on [lynq](https://github.com/hogekai/lynq)'s `agentPayment()` protocol** (`[x-lynq-payment:{...}]` metadata format)
-- Payment detection is isolated in `detectPayment()` — swap this single function to support a different protocol
+> **Note:** Currently depends on [lynq](https://github.com/hogekai/lynq)'s `agentPayment()` protocol. Payment detection is isolated in `detectPayment()` (`hooks/handle-payment.js`) — swap this single function to support a different protocol.
 
 ## Security
 
