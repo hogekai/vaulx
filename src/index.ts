@@ -16,6 +16,7 @@ import { registerTokenResources } from "./resources/tokens.js";
 import { registerTransactionsResource } from "./resources/transactions.js";
 import { TokenRegistry } from "./token/registry.js";
 import { registerApproveToken } from "./tools/approve-token.js";
+import { registerRevokeToken } from "./tools/revoke-token.js";
 import { registerSendToken } from "./tools/send-token.js";
 import { registerSendTransaction } from "./tools/send-transaction.js";
 import { registerSignMessage } from "./tools/sign-message.js";
@@ -60,6 +61,7 @@ registerSendToken(server, toolCtx);
 registerSignMessage(server, { chainManager, policyGuard });
 registerWithdraw(server, toolCtx);
 registerApproveToken(server, toolCtx);
+registerRevokeToken(server, toolCtx);
 
 if (ENABLE_SWAP) {
 	registerSwapToken(server, toolCtx);
