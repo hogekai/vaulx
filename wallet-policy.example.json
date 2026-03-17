@@ -1,0 +1,10 @@
+{
+  "maxPerTx": "100000000000000000",
+  "maxPerDay": "500000000000000000",
+  "maxTotal": "10000000000000000000",
+  "allowedTokens": ["ETH"],
+  "allowedRecipients": [],
+  "blockedRecipients": [],
+  "allowedOperations": ["send", "sign", "withdraw"],
+  "expiresAt": ""
+}
