@@ -1,16 +1,21 @@
 {
   "name": "vaulx",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "type": "module",
+  "bin": {
+    "vaulx": "./dist/cli/index.js"
+  },
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "setup": "tsx src/cli/index.ts setup"
   },
   "dependencies": {
     "@lynq/lynq": "latest",
     "@lynq/store-sqlite": "^0.1.1",
     "better-sqlite3": "^11.10.0",
+    "permissionless": "^0.3.4",
     "viem": "^2.0.0",
     "zod": "^3.25.0"
   },

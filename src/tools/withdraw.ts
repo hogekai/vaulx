@@ -8,22 +8,22 @@ import {
   parseUnits,
 } from "viem";
 import { z } from "zod";
-import { getPublicClient } from "../client.js";
+import type { ChainManager } from "../chain/manager.js";
 import {
   resolveChainId,
   getChain,
-  getToken,
   DEFAULT_CHAIN_ID,
   WITHDRAW_TO,
 } from "../config.js";
 import type { PolicyGuard } from "../guard/policy-guard.js";
 import type { TxLog } from "../log/tx-log.js";
-import type { Signer } from "../signer/types.js";
+import type { TokenRegistry } from "../token/registry.js";
 
 interface WithdrawCtx {
-  signer: Signer;
+  chainManager: ChainManager;
   policyGuard: PolicyGuard;
   txLog: TxLog;
+  tokenRegistry: TokenRegistry;
 }
 
 export function registerWithdraw(server: MCPServer, ctx: WithdrawCtx) {
@@ -53,7 +53,6 @@ export function registerWithdraw(server: MCPServer, ctx: WithdrawCtx) {
       }),
     },
     async (args, c) => {
-      // Resolve recipient
       const to = (args.to as `0x${string}`) ?? WITHDRAW_TO;
       if (!to) {
         return c.error(
@@ -64,12 +63,21 @@ export function registerWithdraw(server: MCPServer, ctx: WithdrawCtx) {
       const chainId = resolveChainId(
         args.chainId ?? args.network ?? DEFAULT_CHAIN_ID,
       );
+      const signer = await ctx.chainManager.getSigner(chainId);
       const isNative = args.token.toUpperCase() === "ETH";
 
       if (isNative) {
-        return withdrawNative(ctx, c, to, chainId, args.amount);
+        return withdrawNative(ctx, signer, c, to, chainId, args.amount);
       } else {
-        return withdrawToken(ctx, c, to, chainId, args.token, args.amount);
+        return withdrawToken(
+          ctx,
+          signer,
+          c,
+          to,
+          chainId,
+          args.token,
+          args.amount,
+        );
       }
     },
   );
@@ -77,12 +85,13 @@ export function registerWithdraw(server: MCPServer, ctx: WithdrawCtx) {
 
 async function withdrawNative(
   ctx: WithdrawCtx,
+  signer: Awaited<ReturnType<ChainManager["getSigner"]>>,
   c: any,
   to: `0x${string}`,
   chainId: number,
   amount?: string,
 ) {
-  const balance = await ctx.signer.getBalance(chainId);
+  const balance = await signer.getBalance(chainId);
 
   let value: bigint;
   if (amount) {
@@ -92,10 +101,14 @@ async function withdrawNative(
         `Insufficient balance. Have: ${formatEther(balance)} ETH, Need: ${amount} ETH`,
       );
     }
+  } else if (signer.hasPaymaster) {
+    value = balance;
+    if (value === 0n) {
+      return c.error("No ETH balance to withdraw.");
+    }
   } else {
-    // Full withdrawal — subtract gas with 10% buffer
-    const address = await ctx.signer.getAddress();
-    const pub = getPublicClient(chainId);
+    const address = await signer.getAddress();
+    const pub = ctx.chainManager.getPublicClient(chainId);
     const gasEstimate = await pub.estimateGas({
       account: address,
       to,
@@ -113,7 +126,6 @@ async function withdrawNative(
     }
   }
 
-  // Policy check
   const check = await ctx.policyGuard.check("withdraw", {
     value,
     to,
@@ -124,7 +136,7 @@ async function withdrawNative(
     return c.error(`Policy rejected: ${check.reason}`);
   }
 
-  const hash = await ctx.signer.sendTransaction({ to, value, chainId });
+  const hash = await signer.sendTransaction({ to, value, chainId });
 
   await ctx.txLog.record({
     hash,
@@ -152,33 +164,34 @@ async function withdrawNative(
 
 async function withdrawToken(
   ctx: WithdrawCtx,
+  signer: Awaited<ReturnType<ChainManager["getSigner"]>>,
   c: any,
   to: `0x${string}`,
   chainId: number,
   tokenSymbol: string,
   amount?: string,
 ) {
-  const token = getToken(chainId, tokenSymbol);
+  const token = ctx.tokenRegistry.resolve(chainId, tokenSymbol);
   if (!token) {
     return c.error(
       `Token "${tokenSymbol}" not found on chain ${chainId}.`,
     );
   }
 
-  // Check gas balance
-  const ethBalance = await ctx.signer.getBalance(chainId);
-  if (ethBalance === 0n) {
-    return c.error("No native token balance for gas.");
+  if (!signer.hasPaymaster) {
+    const ethBalance = await signer.getBalance(chainId);
+    if (ethBalance === 0n) {
+      return c.error("No native token balance for gas.");
+    }
   }
 
-  const address = await ctx.signer.getAddress();
-  const pub = getPublicClient(chainId);
+  const address = await signer.getAddress();
+  const pub = ctx.chainManager.getPublicClient(chainId);
 
   let rawAmount: bigint;
   if (amount) {
     rawAmount = parseUnits(amount, token.decimals);
   } else {
-    // Full withdrawal — read token balance
     const balanceData = await pub.readContract({
       address: token.address,
       abi: erc20Abi,
@@ -192,7 +205,6 @@ async function withdrawToken(
     }
   }
 
-  // Policy check
   const check = await ctx.policyGuard.check("withdraw", {
     value: rawAmount,
     to,
@@ -209,7 +221,7 @@ async function withdrawToken(
     args: [to, rawAmount],
   });
 
-  const hash = await ctx.signer.sendTransaction({
+  const hash = await signer.sendTransaction({
     to: token.address,
     value: 0n,
     chainId,

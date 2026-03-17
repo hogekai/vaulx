@@ -1,21 +1,17 @@
 import type { MCPServer } from "@lynq/lynq";
-import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from "viem";
+import { encodeFunctionData, erc20Abi, parseUnits } from "viem";
 import { z } from "zod";
-import { getPublicClient } from "../client.js";
-import {
-  resolveChainId,
-  getChain,
-  getToken,
-  DEFAULT_CHAIN_ID,
-} from "../config.js";
+import type { ChainManager } from "../chain/manager.js";
+import { resolveChainId, getChain, DEFAULT_CHAIN_ID } from "../config.js";
 import type { PolicyGuard } from "../guard/policy-guard.js";
 import type { TxLog } from "../log/tx-log.js";
-import type { Signer } from "../signer/types.js";
+import type { TokenRegistry } from "../token/registry.js";
 
 interface SendTokenCtx {
-  signer: Signer;
+  chainManager: ChainManager;
   policyGuard: PolicyGuard;
   txLog: TxLog;
+  tokenRegistry: TokenRegistry;
 }
 
 export function registerSendToken(server: MCPServer, ctx: SendTokenCtx) {
@@ -23,7 +19,7 @@ export function registerSendToken(server: MCPServer, ctx: SendTokenCtx) {
     "send_token",
     {
       description:
-        "Send an ERC20 token (e.g. USDC) on an EVM testnet. Returns tx hash and explorer link.",
+        "Send an ERC20 token (e.g. USDC) on an EVM chain. Returns tx hash and explorer link.",
       input: z
         .object({
           to: z.string().optional().describe("Recipient address (0x...)"),
@@ -58,27 +54,27 @@ export function registerSendToken(server: MCPServer, ctx: SendTokenCtx) {
       const chainId = resolveChainId(
         args.chainId ?? args.network ?? DEFAULT_CHAIN_ID,
       );
+      const signer = await ctx.chainManager.getSigner(chainId);
 
-      // Resolve token
-      const token = getToken(chainId, args.token);
+      const token = ctx.tokenRegistry.resolve(chainId, args.token);
       if (!token) {
         return c.error(
           `Token "${args.token}" not found on chain ${chainId}. Check supported tokens.`,
         );
       }
 
-      // Parse amount with token decimals
       const rawAmount = parseUnits(tokenAmount, token.decimals);
 
-      // Check native balance for gas
-      const balance = await ctx.signer.getBalance(chainId);
-      if (balance === 0n) {
-        return c.error(
-          "No native token balance for gas. Deposit ETH first.",
-        );
+      // Check native balance for gas (skip with paymaster)
+      if (!signer.hasPaymaster) {
+        const balance = await signer.getBalance(chainId);
+        if (balance === 0n) {
+          return c.error(
+            "No native token balance for gas. Deposit ETH first.",
+          );
+        }
       }
 
-      // Policy check
       const check = await ctx.policyGuard.check("send", {
         value: rawAmount,
         to,
@@ -89,22 +85,19 @@ export function registerSendToken(server: MCPServer, ctx: SendTokenCtx) {
         return c.error(`Policy rejected: ${check.reason}`);
       }
 
-      // Encode ERC20 transfer call
       const data = encodeFunctionData({
         abi: erc20Abi,
         functionName: "transfer",
         args: [to, rawAmount],
       });
 
-      // Send via signer (to = token contract, value = 0)
-      const hash = await ctx.signer.sendTransaction({
+      const hash = await signer.sendTransaction({
         to: token.address,
         value: 0n,
         chainId,
         data,
       });
 
-      // Log
       await ctx.txLog.record({
         hash,
         chainId,

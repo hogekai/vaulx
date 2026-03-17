@@ -52,6 +52,7 @@ export function createBrowserSigner(port: number): Signer & {
 
   return {
     mode: "browser" as const,
+    hasPaymaster: false,
     state,
 
     async getAddress(): Promise<`0x${string}`> {

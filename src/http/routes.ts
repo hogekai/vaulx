@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { formatEther, parseEther } from "viem";
 import { resolveChainId, getChain, DEFAULT_CHAIN_ID } from "../config.js";
+import type { ChainManager } from "../chain/manager.js";
 import type { PolicyGuard } from "../guard/policy-guard.js";
 import type { TxLog } from "../log/tx-log.js";
 import type { Signer } from "../signer/types.js";
@@ -12,7 +13,7 @@ import { confirmPage } from "./pages/confirm.js";
 import { signPage } from "./pages/sign.js";
 
 export interface WalletContext {
-  signer: Signer;
+  chainManager: ChainManager;
   policyGuard: PolicyGuard;
   txLog: TxLog;
 }
@@ -46,6 +47,10 @@ function parseBody(req: IncomingMessage): Promise<unknown> {
   });
 }
 
+async function getDefaultSigner(ctx: WalletContext): Promise<Signer> {
+  return ctx.chainManager.getSigner(ctx.chainManager.defaultChainId);
+}
+
 function getBrowserState(signer: Signer): BrowserSignerState | null {
   if (signer.mode === "browser" && "state" in signer) {
     return (signer as any).state as BrowserSignerState;
@@ -64,26 +69,29 @@ export async function handleRequest(
 
   // Health check — no auth
   if (method === "GET" && path === "/health") {
+    const defaultSigner = await getDefaultSigner(ctx);
     const address =
-      ctx.signer.mode === "browser"
-        ? getBrowserState(ctx.signer)?.connectedAddress ?? null
-        : await ctx.signer.getAddress();
+      defaultSigner.mode === "browser"
+        ? getBrowserState(defaultSigner)?.connectedAddress ?? null
+        : await defaultSigner.getAddress();
     jsonResponse(res, 200, { status: "ok", address });
     return;
   }
 
   // Deposit page — no auth
   if (method === "GET" && path === "/deposit") {
+    const defaultSigner = await getDefaultSigner(ctx);
     const address =
-      ctx.signer.mode === "browser"
-        ? getBrowserState(ctx.signer)?.connectedAddress ?? "Not connected"
-        : await ctx.signer.getAddress();
+      defaultSigner.mode === "browser"
+        ? getBrowserState(defaultSigner)?.connectedAddress ?? "Not connected"
+        : await defaultSigner.getAddress();
     htmlResponse(res, depositPage(address, DEFAULT_CHAIN_ID));
     return;
   }
 
   // --- Browser mode routes (no auth, nonce-protected) ---
-  const browserState = getBrowserState(ctx.signer);
+  const defaultSigner = await getDefaultSigner(ctx);
+  const browserState = getBrowserState(defaultSigner);
 
   // GET /connect/:nonce
   const connectMatch = path.match(/^\/connect\/([a-f0-9-]+)$/);
@@ -243,7 +251,8 @@ export async function handleRequest(
 
   // GET /address
   if (method === "GET" && path === "/address") {
-    jsonResponse(res, 200, { address: await ctx.signer.getAddress() });
+    const addrSigner = await getDefaultSigner(ctx);
+    jsonResponse(res, 200, { address: await addrSigner.getAddress() });
     return;
   }
 
@@ -253,7 +262,8 @@ export async function handleRequest(
     const chainId = Number(balanceMatch[1]);
     try {
       const chain = getChain(chainId);
-      const balance = await ctx.signer.getBalance(chainId);
+      const balSigner = await ctx.chainManager.getSigner(chainId);
+      const balance = await balSigner.getBalance(chainId);
       jsonResponse(res, 200, {
         chainId,
         network: chain.name,
@@ -289,14 +299,17 @@ export async function handleRequest(
       );
       const value = parseEther(ethValue);
       const token = (body.token as string) ?? "ETH";
+      const txSigner = await ctx.chainManager.getSigner(chainId);
 
-      // Balance check
-      const balance = await ctx.signer.getBalance(chainId);
-      if (balance < value) {
-        jsonResponse(res, 400, {
-          error: `Insufficient balance. Have: ${formatEther(balance)} ETH, Need: ${ethValue} ETH`,
-        });
-        return;
+      // Balance check (skip with paymaster)
+      if (!txSigner.hasPaymaster) {
+        const balance = await txSigner.getBalance(chainId);
+        if (balance < value) {
+          jsonResponse(res, 400, {
+            error: `Insufficient balance. Have: ${formatEther(balance)} ETH, Need: ${ethValue} ETH`,
+          });
+          return;
+        }
       }
 
       // Policy check
@@ -313,7 +326,7 @@ export async function handleRequest(
       }
 
       // Send
-      const hash = await ctx.signer.sendTransaction({
+      const hash = await txSigner.sendTransaction({
         to,
         value,
         chainId,

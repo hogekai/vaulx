@@ -6,7 +6,8 @@ export interface TxParams {
 }
 
 export interface Signer {
-  readonly mode: "env" | "browser";
+  readonly mode: "env" | "browser" | "smart-account" | "session-key";
+  readonly hasPaymaster: boolean;
   getAddress(): Promise<`0x${string}`>;
   sendTransaction(params: TxParams): Promise<`0x${string}`>;
   signMessage(message: string): Promise<`0x${string}`>;

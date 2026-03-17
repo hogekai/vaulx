@@ -43,6 +43,7 @@ export function createEnvSigner(): Signer {
 
   return {
     mode: "env" as const,
+    hasPaymaster: false,
 
     async getAddress(): Promise<`0x${string}`> {
       return account.address;

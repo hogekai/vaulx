@@ -12,6 +12,9 @@ const SpendingPolicySchema = z.object({
   allowedOperations: z.array(z.string()).default(["send", "sign"]),
   maxApproveAmount: z.string().optional(),
   expiresAt: z.string().optional(),
+  allowedChains: z.array(z.number()).optional(),
+  maxSlippage: z.number().optional(),
+  allowedSwapTokens: z.array(z.string()).optional(),
 });
 
 export type SpendingPolicy = z.infer<typeof SpendingPolicySchema>;

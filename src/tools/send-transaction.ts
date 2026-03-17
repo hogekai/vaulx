@@ -1,6 +1,7 @@
 import type { MCPServer } from "@lynq/lynq";
 import { formatEther, parseEther } from "viem";
 import { z } from "zod";
+import type { ChainManager } from "../chain/manager.js";
 import {
   resolveChainId,
   getChain,
@@ -8,10 +9,9 @@ import {
 } from "../config.js";
 import type { PolicyGuard } from "../guard/policy-guard.js";
 import type { TxLog } from "../log/tx-log.js";
-import type { Signer } from "../signer/types.js";
 
 interface SendTransactionCtx {
-  signer: Signer;
+  chainManager: ChainManager;
   policyGuard: PolicyGuard;
   txLog: TxLog;
 }
@@ -24,7 +24,7 @@ export function registerSendTransaction(
     "send_transaction",
     {
       description:
-        "Send native token (ETH) on an EVM testnet. Returns tx hash and explorer link.",
+        "Send native token (ETH) on an EVM chain. Returns tx hash and explorer link.",
       input: z
         .object({
           to: z.string().optional().describe("Recipient address (0x...)"),
@@ -54,21 +54,23 @@ export function registerSendTransaction(
         .refine((d) => d.value || d.amount, "value or amount required"),
     },
     async (args, c) => {
-      // 1. Normalize params
       const to = (args.to || args.recipient) as `0x${string}`;
       const ethValue = args.value || args.amount!;
       const chainId = resolveChainId(args.chainId ?? args.network ?? DEFAULT_CHAIN_ID);
       const value = parseEther(ethValue);
+      const signer = await ctx.chainManager.getSigner(chainId);
 
-      // 2. Check balance for gas
-      const balance = await ctx.signer.getBalance(chainId);
-      if (balance < value) {
-        return c.error(
-          `Insufficient balance. Have: ${formatEther(balance)} ETH, Need: ${ethValue} ETH`,
-        );
+      // Check balance (skip gas check with paymaster)
+      if (!signer.hasPaymaster) {
+        const balance = await signer.getBalance(chainId);
+        if (balance < value) {
+          return c.error(
+            `Insufficient balance. Have: ${formatEther(balance)} ETH, Need: ${ethValue} ETH`,
+          );
+        }
       }
 
-      // 3. Policy check
+      // Policy check
       const check = await ctx.policyGuard.check("send", {
         value,
         to,
@@ -78,14 +80,8 @@ export function registerSendTransaction(
         return c.error(`Policy rejected: ${check.reason}`);
       }
 
-      // 4. Send transaction
-      const hash = await ctx.signer.sendTransaction({
-        to,
-        value,
-        chainId,
-      });
+      const hash = await signer.sendTransaction({ to, value, chainId });
 
-      // 5. Log
       await ctx.txLog.record({
         hash,
         chainId,
@@ -97,7 +93,6 @@ export function registerSendTransaction(
         status: "sent",
       });
 
-      // 6. Return proof-compatible response
       const chain = getChain(chainId);
       return c.json({
         hash,

@@ -6,6 +6,7 @@ export interface PolicyCheckParams {
   to?: `0x${string}`;
   chainId?: number;
   token?: string;
+  slippage?: number;
 }
 
 export interface PolicyGuard {
@@ -13,6 +14,7 @@ export interface PolicyGuard {
     operation: string,
     params: PolicyCheckParams,
   ): Promise<{ ok: true } | { ok: false; reason: string }>;
+  policy: SpendingPolicy;
 }
 
 export function createPolicyGuard(
@@ -20,6 +22,8 @@ export function createPolicyGuard(
   store: Store,
 ): PolicyGuard {
   return {
+    policy,
+
     async check(operation, params) {
       // Check expiry
       if (policy.expiresAt) {
@@ -37,12 +41,48 @@ export function createPolicyGuard(
         };
       }
 
+      // Check allowed chains
+      if (
+        params.chainId !== undefined &&
+        policy.allowedChains &&
+        policy.allowedChains.length > 0 &&
+        !policy.allowedChains.includes(params.chainId)
+      ) {
+        return {
+          ok: false,
+          reason: `Chain ${params.chainId} not allowed. Allowed: ${policy.allowedChains.join(", ")}`,
+        };
+      }
+
       // Check token allowed
       if (params.token && !policy.allowedTokens.includes(params.token)) {
         return {
           ok: false,
           reason: `Token "${params.token}" not allowed. Allowed: ${policy.allowedTokens.join(", ")}`,
         };
+      }
+
+      // Check slippage (for swap operations)
+      if (
+        params.slippage !== undefined &&
+        policy.maxSlippage !== undefined &&
+        params.slippage > policy.maxSlippage
+      ) {
+        return {
+          ok: false,
+          reason: `Slippage ${params.slippage}% exceeds max ${policy.maxSlippage}%`,
+        };
+      }
+
+      // Check approve amount
+      if (operation === "approve" && params.value !== undefined && policy.maxApproveAmount) {
+        const maxApprove = BigInt(policy.maxApproveAmount);
+        if (params.value > maxApprove) {
+          return {
+            ok: false,
+            reason: `Approve amount exceeds maxApproveAmount: ${params.value} > ${maxApprove}`,
+          };
+        }
       }
 
       // Recipient and value checks only apply when provided
@@ -67,7 +107,7 @@ export function createPolicyGuard(
         }
       }
 
-      if (params.value !== undefined) {
+      if (params.value !== undefined && operation !== "approve") {
         // Check per-tx limit
         const maxPerTx = BigInt(policy.maxPerTx);
         if (params.value > maxPerTx) {

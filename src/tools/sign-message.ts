@@ -1,10 +1,10 @@
 import type { MCPServer } from "@lynq/lynq";
 import { z } from "zod";
+import type { ChainManager } from "../chain/manager.js";
 import type { PolicyGuard } from "../guard/policy-guard.js";
-import type { Signer } from "../signer/types.js";
 
 interface SignMessageCtx {
-  signer: Signer;
+  chainManager: ChainManager;
   policyGuard: PolicyGuard;
 }
 
@@ -19,14 +19,16 @@ export function registerSignMessage(server: MCPServer, ctx: SignMessageCtx) {
       }),
     },
     async (args, c) => {
-      // Policy check — only operation + expiry
       const check = await ctx.policyGuard.check("sign", {});
       if (!check.ok) {
         return c.error(`Policy rejected: ${check.reason}`);
       }
 
-      const signature = await ctx.signer.signMessage(args.message);
-      const address = await ctx.signer.getAddress();
+      const signer = await ctx.chainManager.getSigner(
+        ctx.chainManager.defaultChainId,
+      );
+      const signature = await signer.signMessage(args.message);
+      const address = await signer.getAddress();
 
       return c.json({
         signature,

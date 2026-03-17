@@ -56,40 +56,38 @@ export function getChain(chainId: number): ChainConfig {
 }
 
 export function getRpcUrl(chainId: number): string {
+  const perChain = process.env[`RPC_URL_${chainId}`];
+  if (perChain) return perChain;
   const envRpc = process.env.RPC_URL;
   if (envRpc && chainId === DEFAULT_CHAIN_ID) return envRpc;
   return getChain(chainId).rpc;
 }
 
-// Token registry for ERC20 support
-export interface TokenInfo {
-  address: `0x${string}`;
-  decimals: number;
-  symbol: string;
-}
-
-export const TOKENS: Record<number, Record<string, TokenInfo>> = {
-  84532: {
-    USDC: {
-      address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-      decimals: 6,
-      symbol: "USDC",
-    },
-  },
-  11155111: {
-    USDC: {
-      address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
-      decimals: 6,
-      symbol: "USDC",
-    },
-  },
+// Pimlico chain name mapping
+const PIMLICO_CHAINS: Record<number, string> = {
+  1: "ethereum",
+  8453: "base",
+  84532: "base-sepolia",
+  11155111: "sepolia",
 };
 
-export function getToken(
-  chainId: number,
-  symbol: string,
-): TokenInfo | undefined {
-  return TOKENS[chainId]?.[symbol.toUpperCase()];
+export function getPimlicoUrl(chainId: number): string {
+  if (!PIMLICO_API_KEY) {
+    throw new Error("PIMLICO_API_KEY required for smart account mode");
+  }
+  const chainName = PIMLICO_CHAINS[chainId];
+  if (!chainName) {
+    throw new Error(`Pimlico does not support chainId ${chainId}`);
+  }
+  return `https://api.pimlico.io/v2/${chainName}/rpc?apikey=${PIMLICO_API_KEY}`;
+}
+
+export function getBundlerUrl(chainId: number): string {
+  return BUNDLER_URL || getPimlicoUrl(chainId);
+}
+
+export function getPaymasterUrl(chainId: number): string {
+  return PAYMASTER_URL || getPimlicoUrl(chainId);
 }
 
 // Environment variables
@@ -105,8 +103,21 @@ export const WITHDRAW_TO = process.env.WITHDRAW_TO as
   | undefined;
 export const WALLET_MODE = (process.env.WALLET_MODE || "env") as
   | "env"
-  | "browser";
+  | "browser"
+  | "smart-account"
+  | "session-key";
 export const WALLET_STORE = (process.env.WALLET_STORE || "sqlite") as
   | "memory"
   | "sqlite";
 export const WALLET_DB = process.env.WALLET_DB || "./vaulx.db";
+export const PIMLICO_API_KEY = process.env.PIMLICO_API_KEY || "";
+export const SMART_ACCOUNT_ADDRESS = process.env.SMART_ACCOUNT_ADDRESS as
+  | `0x${string}`
+  | undefined;
+export const SESSION_KEY = process.env.SESSION_KEY as
+  | `0x${string}`
+  | undefined;
+export const BUNDLER_URL = process.env.BUNDLER_URL || "";
+export const PAYMASTER_URL = process.env.PAYMASTER_URL || "";
+export const CUSTOM_TOKENS = process.env.CUSTOM_TOKENS || "";
+export const ENABLE_SWAP = process.env.ENABLE_SWAP === "true";
