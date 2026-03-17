@@ -1,11 +1,11 @@
 import { memoryStore } from "@lynq/lynq";
 import { beforeEach, describe, expect, test } from "vitest";
+import type { ChainManager } from "../../src/chain/manager.js";
 import { VaulxError } from "../../src/errors.js";
 import { createPolicyGuard } from "../../src/guard/policy-guard.js";
 import { executeTx } from "../../src/helpers/execute-tx.js";
 import { createTxLog } from "../../src/log/tx-log.js";
 import type { SpendingPolicy } from "../../src/policy.js";
-import type { ChainManager } from "../../src/chain/manager.js";
 import type { Signer, TxParams } from "../../src/signer/types.js";
 
 // Minimal mock — trackReceipt calls getPublicClient but it's fire-and-forget so errors are swallowed

@@ -169,7 +169,12 @@ export function registerSwapToken(server: MCPServer, ctx: SwapTokenCtx) {
 						token: tokenInInfo.symbol,
 						policyExtra: { slippage: args.slippage },
 					},
-					{ signer, policyGuard: ctx.policyGuard, txLog: ctx.txLog, chainManager: ctx.chainManager },
+					{
+						signer,
+						policyGuard: ctx.policyGuard,
+						txLog: ctx.txLog,
+						chainManager: ctx.chainManager,
+					},
 				);
 
 				return c.json({

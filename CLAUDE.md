@@ -49,25 +49,47 @@ src/
 │   ├── env.ts              — EnvSigner: privateKeyToAccount + NonceManager
 │   ├── browser.ts          — BrowserSigner: MetaMask confirmation via localhost pages
 │   ├── smart-account.ts    — SmartAccountSigner: Kernel + Pimlico bundler/paymaster
-│   └── session-key.ts      — SessionKeySigner: session key → smart account
+│   ├── session-key.ts      — SessionKeySigner: session key → smart account
+│   └── factory.ts          — createSignerForChain(): mode-based signer factory
+├── errors.ts               — VaulxError class with typed error codes
+├── helpers/
+│   ├── execute-tx.ts       — executeTx(): policy check → send → log → result
+│   └── validate.ts         — validateAddress(), validateAmount()
 ├── guard/
 │   └── policy-guard.ts     — PolicyGuard.check(): maxPerTx, maxPerDay, maxTotal, recipient lists, token check
 ├── log/
-│   └── tx-log.ts           — TxRecord, record() + list() via store
+│   ├── tx-log.ts           — TxRecord, record/list/recent/byChain/isDuplicate/updateStatus/pending
+│   └── receipt-tracker.ts  — Background receipt polling (fire-and-forget)
+├── token/
+│   └── registry.ts         — TokenRegistry: resolve/list/resolveByAddress
+├── chain/
+│   └── manager.ts          — ChainManager: multi-chain signer/client creation
 ├── tools/
 │   ├── send-transaction.ts — MCP tool: native ETH send
 │   ├── send-token.ts       — MCP tool: ERC20 send (encodeFunctionData)
 │   ├── sign-message.ts     — MCP tool: message signing
+│   ├── approve-token.ts    — MCP tool: ERC20 approve (never infinite)
+│   ├── revoke-token.ts     — MCP tool: revoke ERC20 approval (approve 0)
+│   ├── swap-token.ts       — MCP tool: Uniswap V3 swap (conditional)
 │   └── withdraw.ts         — MCP tool: withdraw native/ERC20 (full balance support)
 ├── resources/
 │   ├── address.ts          — wallet://address
 │   ├── balance.ts          — wallet://balance/{chainId}
-│   └── transactions.ts     — wallet://transactions
+│   ├── tokens.ts           — wallet://tokens, wallet://balance/{chainId}/{token}, wallet://allowance, wallet://balances
+│   ├── transactions.ts     — wallet://transactions
+│   ├── spending.ts         — wallet://spending (daily/total spend + limits)
+│   ├── policy.ts           — wallet://policy (current policy config)
+│   └── chains.ts           — wallet://chains
 ├── http/
 │   ├── server.ts           — node:http on 127.0.0.1:18420
 │   ├── auth.ts             — Bearer token (env or auto-generated)
-│   ├── routes.ts           — REST dispatcher + browser mode endpoints
+│   ├── routes.ts           — REST dispatcher (delegates to handlers/)
+│   ├── error.ts            — jsonResponse, htmlResponse, errorResponse helpers
 │   ├── deposit.ts          — Deposit page HTML (MetaMask + faucets)
+│   ├── handlers/
+│   │   ├── pages.ts        — /health, /deposit
+│   │   ├── browser.ts      — /connect, /confirm, /sign nonce routes
+│   │   └── api.ts          — /address, /balance, /api/send-transaction
 │   └── pages/
 │       ├── connect.ts      — Wallet connection page
 │       ├── confirm.ts      — TX confirmation page

@@ -110,6 +110,28 @@ describe("TxLog", () => {
 		expect(dup).toBe(false);
 	});
 
+	test("updateStatus: sent → confirmed", async () => {
+		await txLog.record(makeTx({ hash: "0xupdate" }));
+		await txLog.updateStatus("0xupdate", "confirmed");
+		const all = await txLog.list();
+		expect(all[0].status).toBe("confirmed");
+	});
+
+	test("updateStatus: non-existent hash → noop", async () => {
+		await txLog.updateStatus("0xnonexistent", "failed");
+		const all = await txLog.list();
+		expect(all).toHaveLength(0);
+	});
+
+	test("pending: returns only sent", async () => {
+		await txLog.record(makeTx({ hash: "0x1" }));
+		await txLog.record(makeTx({ hash: "0x2" }));
+		await txLog.updateStatus("0x1", "confirmed");
+		const pending = await txLog.pending();
+		expect(pending).toHaveLength(1);
+		expect(pending[0].hash).toBe("0x2");
+	});
+
 	test("isDuplicate: old tx (>10s) → false", async () => {
 		const oldTimestamp = new Date(Date.now() - 15_000).toISOString();
 		await txLog.record(makeTx({ timestamp: oldTimestamp }));

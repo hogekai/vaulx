@@ -10,11 +10,7 @@ interface ReceiptTrackerDeps {
  * Fire-and-forget receipt polling. Callers should NOT await this.
  * Updates TxLog status to "confirmed" or "failed" once receipt is available.
  */
-export function trackReceipt(
-	hash: `0x${string}`,
-	chainId: number,
-	deps: ReceiptTrackerDeps,
-): void {
+export function trackReceipt(hash: `0x${string}`, chainId: number, deps: ReceiptTrackerDeps): void {
 	const run = async () => {
 		try {
 			const client = deps.chainManager.getPublicClient(chainId);
