@@ -1,22 +1,7 @@
 import type { PublicClient } from "viem";
 import { getPublicClient } from "../client.js";
-import {
-	CHAINS,
-	type ChainConfig,
-	DEFAULT_CHAIN_ID,
-	getBundlerUrl,
-	getPaymasterUrl,
-	PIMLICO_API_KEY,
-	PRIVATE_KEY,
-	SESSION_KEY,
-	SMART_ACCOUNT_ADDRESS,
-	WALLET_MODE,
-	WALLET_PORT,
-} from "../config.js";
-import { createBrowserSigner } from "../signer/browser.js";
-import { createEnvSigner } from "../signer/env.js";
-import { createSessionKeySigner } from "../signer/session-key.js";
-import { createSmartAccountSigner } from "../signer/smart-account.js";
+import { CHAINS, type ChainConfig, DEFAULT_CHAIN_ID, WALLET_MODE } from "../config.js";
+import { createSignerForChain } from "../signer/factory.js";
 import type { Signer } from "../signer/types.js";
 
 export interface ChainManager {
@@ -37,8 +22,7 @@ export function createChainManager(): ChainManager {
 		// env and browser signers are chain-agnostic
 		if (WALLET_MODE === "env" || WALLET_MODE === "browser") {
 			if (!sharedSigner) {
-				sharedSigner =
-					WALLET_MODE === "browser" ? createBrowserSigner(WALLET_PORT) : createEnvSigner();
+				sharedSigner = await createSignerForChain(chainId);
 			}
 			return sharedSigner;
 		}
@@ -47,34 +31,7 @@ export function createChainManager(): ChainManager {
 		const cached = signerCache.get(chainId);
 		if (cached) return cached;
 
-		let signer: Signer;
-		if (WALLET_MODE === "smart-account") {
-			if (!PRIVATE_KEY) {
-				throw new Error("PRIVATE_KEY required for smart-account mode");
-			}
-			signer = await createSmartAccountSigner({
-				ownerPrivateKey: PRIVATE_KEY,
-				chainId,
-				bundlerUrl: getBundlerUrl(chainId),
-				paymasterUrl: PIMLICO_API_KEY ? getPaymasterUrl(chainId) : undefined,
-			});
-		} else {
-			// session-key
-			if (!SESSION_KEY) {
-				throw new Error("SESSION_KEY required for session-key mode");
-			}
-			if (!SMART_ACCOUNT_ADDRESS) {
-				throw new Error("SMART_ACCOUNT_ADDRESS required for session-key mode");
-			}
-			signer = await createSessionKeySigner({
-				sessionKey: SESSION_KEY,
-				smartAccountAddress: SMART_ACCOUNT_ADDRESS,
-				chainId,
-				bundlerUrl: getBundlerUrl(chainId),
-				paymasterUrl: PIMLICO_API_KEY ? getPaymasterUrl(chainId) : undefined,
-			});
-		}
-
+		const signer = await createSignerForChain(chainId);
 		signerCache.set(chainId, signer);
 		return signer;
 	}

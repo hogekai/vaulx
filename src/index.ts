@@ -11,6 +11,8 @@ import { registerAddressResource } from "./resources/address.js";
 import { registerBalanceResource } from "./resources/balance.js";
 import { registerChainsResource } from "./resources/chains.js";
 import { registerTokenResources } from "./resources/tokens.js";
+import { registerPolicyResource } from "./resources/policy.js";
+import { registerSpendingResource } from "./resources/spending.js";
 import { registerTransactionsResource } from "./resources/transactions.js";
 import { TokenRegistry } from "./token/registry.js";
 import { registerApproveToken } from "./tools/approve-token.js";
@@ -48,6 +50,8 @@ registerBalanceResource(server, chainManager);
 registerTransactionsResource(server, txLog);
 registerChainsResource(server);
 registerTokenResources(server, chainManager, tokenRegistry);
+registerSpendingResource(server, { chainManager, policyGuard, store });
+registerPolicyResource(server, policyGuard);
 
 // Tools
 const toolCtx = { chainManager, policyGuard, txLog, tokenRegistry };
