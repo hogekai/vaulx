@@ -34,7 +34,10 @@ try {
   const data = JSON.parse(input);
   const message = data.message ?? "";
 
-  // Detect payment elicitation by x-lynq-payment metadata tag
+  // Detect payment elicitation by x-lynq-payment metadata tag.
+  // This pattern is set by lynq's agentPayment() middleware.
+  // If lynq changes this format, this hook will break.
+  // See: lynq/packages/lynq/src/middleware/agent-payment.ts
   const metaMatch = message.match(/\[x-lynq-payment:(\{[^}]+\})\]/);
 
   if (!metaMatch) {

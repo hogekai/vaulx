@@ -1,3 +1,10 @@
 node_modules/
 dist/
 .env
+.env.*
+!.env.example
+vaulx.db
+vaulx.db-journal
+*.tsbuildinfo
+.DS_Store
+coverage/

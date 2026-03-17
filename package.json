@@ -9,10 +9,18 @@
     "dev": "tsx src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "setup": "tsx src/cli/index.ts setup"
+    "setup": "tsx src/cli/index.ts setup",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "@lynq/lynq": "latest",
+    "@lynq/lynq": "^0.10.0",
     "@lynq/store-sqlite": "^0.1.1",
     "better-sqlite3": "^11.10.0",
     "permissionless": "^0.3.4",
@@ -20,9 +28,11 @@
     "zod": "^3.25.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.7",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.5.0",
     "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^4.1.0"
   }
 }

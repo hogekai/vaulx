@@ -2,9 +2,13 @@
   "maxPerTx": "100000000000000000",
   "maxPerDay": "500000000000000000",
   "maxTotal": "10000000000000000000",
-  "allowedTokens": ["ETH"],
+  "allowedTokens": ["ETH", "USDC"],
   "allowedRecipients": [],
   "blockedRecipients": [],
-  "allowedOperations": ["send", "sign", "withdraw"],
+  "allowedOperations": ["send", "send_token", "sign", "approve", "swap", "withdraw"],
+  "maxApproveAmount": "1000000000000000000",
+  "allowedChains": [84532, 11155111],
+  "maxSlippage": 1.0,
+  "allowedSwapTokens": ["ETH", "USDC"],
   "expiresAt": ""
 }

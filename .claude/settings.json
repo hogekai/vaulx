@@ -1,7 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm list:*)"
+      "Bash(npm list:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:docs.pimlico.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:unpkg.com)",
+      "WebFetch(domain:eip7579.com)",
+      "WebFetch(domain:viem.sh)",
+      "WebFetch(domain:blog.pimlico.io)",
+      "WebFetch(domain:x.com)",
+      "WebFetch(domain:ethereum.org)",
+      "WebFetch(domain:docs.rhinestone.wtf)",
+      "WebFetch(domain:docs.rhinestone.dev)",
+      "WebFetch(domain:docs.zerodev.app)"
     ]
   }
 }
