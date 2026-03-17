@@ -8,3 +8,4 @@ vaulx.db-journal
 *.tsbuildinfo
 .DS_Store
 coverage/
+wallet-policy.json

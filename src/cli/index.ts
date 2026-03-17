@@ -2,6 +2,7 @@
 
 import { CHAINS, DEFAULT_CHAIN_ID, PIMLICO_API_KEY, PRIVATE_KEY } from "../config.js";
 import { deploySmartAccount } from "./deploy.js";
+import { init } from "./init.js";
 import { ask, askWithDefault, close, confirm } from "./prompts.js";
 import { createSessionKey } from "./session.js";
 
@@ -64,13 +65,33 @@ async function setup() {
 	close();
 }
 
+function getFlag(name: string): string | undefined {
+	const idx = process.argv.indexOf(name);
+	return idx !== -1 && idx + 1 < process.argv.length ? process.argv[idx + 1] : undefined;
+}
+
+function hasFlag(name: string): boolean {
+	return process.argv.includes(name);
+}
+
 const command = process.argv[2];
 
 switch (command) {
+	case "init":
+		await init({
+			chain: getFlag("--chain"),
+			nonInteractive: hasFlag("--non-interactive"),
+			maxPerTx: getFlag("--max-per-tx"),
+			maxPerDay: getFlag("--max-per-day"),
+		});
+		break;
 	case "setup":
 		await setup();
 		break;
 	default:
-		console.error("Usage: vaulx setup");
+		console.error("Usage: vaulx <command>\n");
+		console.error("Commands:");
+		console.error("  init    Generate a new agent wallet + register in Claude Code");
+		console.error("  setup   Deploy smart account + session key (advanced)");
 		process.exit(1);
 }
