@@ -7,6 +7,7 @@ import { registerAddressResource } from "./resources/address.js";
 import { registerBalanceResource } from "./resources/balance.js";
 import { registerTransactionsResource } from "./resources/transactions.js";
 import { registerSendTransaction } from "./tools/send-transaction.js";
+import { startHttpServer } from "./http/server.js";
 
 const store = memoryStore();
 const signer = createEnvSigner();
@@ -30,4 +31,8 @@ registerSendTransaction(server, { signer, policyGuard, txLog });
 
 console.error(`[vaulx] Wallet address: ${signer.address}`);
 
-await server.stdio();
+// Start both transports
+await Promise.all([
+  server.stdio(),
+  startHttpServer({ signer, policyGuard, txLog }),
+]);
