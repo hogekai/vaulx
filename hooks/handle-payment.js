@@ -23,7 +23,7 @@
 const WALLET_URL = process.env.WALLET_URL || "http://127.0.0.1:18420";
 const WALLET_TOKEN = process.env.WALLET_TOKEN || "";
 
-// ここだけ差し替えれば別プロトコルにも対応できる
+// Swap this function to support a different payment protocol
 function detectPayment(input) {
   const match = input.message?.match(/\[x-lynq-payment:(\{[^}]+\})\]/);
   if (!match) return null;
