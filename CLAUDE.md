@@ -71,11 +71,15 @@ src/
 │   ├── approve-token.ts    — MCP tool: ERC20 approve (never infinite)
 │   ├── revoke-token.ts     — MCP tool: revoke ERC20 approval (approve 0)
 │   ├── swap-token.ts       — MCP tool: Uniswap V3 swap (conditional)
-│   └── withdraw.ts         — MCP tool: withdraw native/ERC20 (full balance support)
+│   ├── withdraw.ts         — MCP tool: withdraw native/ERC20 (full balance support)
+│   ├── get-address.ts      — MCP tool: wallet address + mode
+│   ├── get-balance.ts      — MCP tool: native + ERC20 balances
+│   ├── get-transactions.ts — MCP tool: tx history (with optional limit)
+│   └── get-spending.ts     — MCP tool: daily/total spend + remaining limits
 ├── resources/
 │   ├── address.ts          — wallet://address
-│   ├── balance.ts          — wallet://balance/{chainId}
-│   ├── tokens.ts           — wallet://tokens, wallet://balance/{chainId}/{token}, wallet://allowance, wallet://balances
+│   ├── balance.ts          — wallet://balance (default chain), wallet://balance/{chainId}
+│   ├── tokens.ts           — wallet://tokens, wallet://balance/{chainId}/{token}, wallet://allowance, wallet://balances (default chain + by chain)
 │   ├── transactions.ts     — wallet://transactions
 │   ├── spending.ts         — wallet://spending (daily/total spend + limits)
 │   ├── policy.ts           — wallet://policy (current policy config)
