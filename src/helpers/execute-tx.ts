@@ -56,10 +56,7 @@ export async function executeTx(
 		chainId: txParams.chainId,
 	});
 	if (dup) {
-		throw new VaulxError(
-			"Duplicate transaction detected (same params within 10s)",
-			"TX_FAILED",
-		);
+		throw new VaulxError("Duplicate transaction detected (same params within 10s)", "TX_FAILED");
 	}
 
 	// 3. Send
@@ -67,11 +64,11 @@ export async function executeTx(
 	try {
 		hash = await signer.sendTransaction(txParams);
 	} catch (e) {
-		throw new VaulxError(
-			e instanceof Error ? e.message : "Transaction failed",
-			"TX_FAILED",
-			{ operation, to: txParams.to, chainId: txParams.chainId },
-		);
+		throw new VaulxError(e instanceof Error ? e.message : "Transaction failed", "TX_FAILED", {
+			operation,
+			to: txParams.to,
+			chainId: txParams.chainId,
+		});
 	}
 
 	// 3. Log

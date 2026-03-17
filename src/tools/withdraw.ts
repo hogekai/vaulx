@@ -1,5 +1,12 @@
 import type { MCPServer, ToolContext } from "@lynq/lynq";
-import { encodeFunctionData, erc20Abi, formatEther, formatUnits, parseEther, parseUnits } from "viem";
+import {
+	encodeFunctionData,
+	erc20Abi,
+	formatEther,
+	formatUnits,
+	parseEther,
+	parseUnits,
+} from "viem";
 import { z } from "zod";
 import type { ChainManager } from "../chain/manager.js";
 import { DEFAULT_CHAIN_ID, resolveChainId, WITHDRAW_TO } from "../config.js";
@@ -122,10 +129,7 @@ async function withdrawToken(
 ) {
 	const token = ctx.tokenRegistry.resolve(chainId, tokenSymbol);
 	if (!token) {
-		throw new VaulxError(
-			`Token "${tokenSymbol}" not found on chain ${chainId}`,
-			"UNKNOWN_TOKEN",
-		);
+		throw new VaulxError(`Token "${tokenSymbol}" not found on chain ${chainId}`, "UNKNOWN_TOKEN");
 	}
 
 	// Gas check for ERC20

@@ -4,7 +4,6 @@ import { createPimlicoClient } from "permissionless/clients/pimlico";
 import { http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { getPublicClient, getViemChain } from "../client.js";
-import { getRpcUrl } from "../config.js";
 import type { Signer, TxParams } from "./types.js";
 
 interface SmartAccountSignerConfig {

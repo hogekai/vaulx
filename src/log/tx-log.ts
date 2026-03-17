@@ -59,11 +59,7 @@ export function createTxLog(store: Store): TxLog {
 			return all.filter((tx) => tx.operation === operation);
 		},
 
-		async isDuplicate(params: {
-			to: string;
-			value: string;
-			chainId: number;
-		}): Promise<boolean> {
+		async isDuplicate(params: { to: string; value: string; chainId: number }): Promise<boolean> {
 			const all = await this.list();
 			const now = Date.now();
 			return all.some(

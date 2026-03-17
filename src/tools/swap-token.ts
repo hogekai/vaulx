@@ -3,7 +3,6 @@ import { encodeFunctionData, erc20Abi, parseEther, parseUnits } from "viem";
 import { z } from "zod";
 import type { ChainManager } from "../chain/manager.js";
 import { DEFAULT_CHAIN_ID, resolveChainId } from "../config.js";
-import { VaulxError } from "../errors.js";
 import {
 	encodeExactInputSingle,
 	isSwapSupported,
@@ -12,6 +11,7 @@ import {
 	SWAP_ROUTER,
 	WETH,
 } from "../dex/uniswap.js";
+import { VaulxError } from "../errors.js";
 import type { PolicyGuard } from "../guard/policy-guard.js";
 import { executeTx } from "../helpers/execute-tx.js";
 import type { TxLog } from "../log/tx-log.js";
@@ -142,8 +142,7 @@ export function registerSwapToken(server: MCPServer, ctx: SwapTokenCtx) {
 					});
 					const quotedAmount = (quoteResult.result as readonly bigint[])[0];
 					amountOutMinimum =
-						quotedAmount -
-						(quotedAmount * BigInt(Math.floor(args.slippage * 100))) / 10000n;
+						quotedAmount - (quotedAmount * BigInt(Math.floor(args.slippage * 100))) / 10000n;
 				} catch {
 					console.error("[vaulx] Quote failed, using amountOutMinimum=0");
 				}

@@ -15,9 +15,13 @@ export function validateAmount(input: string, label = "amount"): string {
 	}
 	const n = Number(input);
 	if (Number.isNaN(n) || n < 0) {
-		throw new VaulxError(`Invalid ${label}: ${input} (must be non-negative number)`, "CONFIG_ERROR", {
-			value: input,
-		});
+		throw new VaulxError(
+			`Invalid ${label}: ${input} (must be non-negative number)`,
+			"CONFIG_ERROR",
+			{
+				value: input,
+			},
+		);
 	}
 	if (n === 0) {
 		throw new VaulxError(`${label} is zero`, "POLICY_VIOLATION");

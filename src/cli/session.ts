@@ -41,7 +41,7 @@ export async function createSessionKey(
 		version: "0.3.1",
 	});
 
-	const smartAccountClient = createSmartAccountClient({
+	const _smartAccountClient = createSmartAccountClient({
 		account: kernelAccount,
 		chain,
 		bundlerTransport: http(bundlerUrl),

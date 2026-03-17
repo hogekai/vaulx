@@ -1,7 +1,7 @@
 import type { ServerResponse } from "node:http";
 import { DEFAULT_CHAIN_ID } from "../../config.js";
-import type { Signer } from "../../signer/types.js";
 import type { BrowserSignerState } from "../../signer/browser.js";
+import type { Signer } from "../../signer/types.js";
 import { depositPage } from "../deposit.js";
 import { htmlResponse, jsonResponse } from "../error.js";
 import type { WalletContext } from "../routes.js";

@@ -1,5 +1,5 @@
 import type { ServerResponse } from "node:http";
-import { VaulxError } from "../errors.js";
+import type { VaulxError } from "../errors.js";
 
 export function jsonResponse(res: ServerResponse, status: number, data: unknown) {
 	res.writeHead(status, { "Content-Type": "application/json" });

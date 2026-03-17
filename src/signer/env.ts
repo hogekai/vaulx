@@ -7,7 +7,7 @@ import type { Signer, TxParams } from "./types.js";
 class NonceManager {
 	private pending: bigint | null = null;
 
-	async next(address: `0x${string}`, getCount: () => Promise<number>): Promise<number> {
+	async next(_address: `0x${string}`, getCount: () => Promise<number>): Promise<number> {
 		if (this.pending !== null) {
 			this.pending += 1n;
 			return Number(this.pending);
