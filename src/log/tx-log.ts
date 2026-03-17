@@ -19,6 +19,10 @@ export interface TxLog {
 	byOperation(operation: string): Promise<TxRecord[]>;
 	/** Check if same to/value/chainId tx was sent within 10 seconds */
 	isDuplicate(params: { to: string; value: string; chainId: number }): Promise<boolean>;
+	/** Update tx status by hash */
+	updateStatus(hash: string, status: TxRecord["status"]): Promise<void>;
+	/** Return txs with status "sent" */
+	pending(): Promise<TxRecord[]>;
 }
 
 export function createTxLog(store: Store): TxLog {
@@ -57,6 +61,20 @@ export function createTxLog(store: Store): TxLog {
 		async byOperation(operation: string): Promise<TxRecord[]> {
 			const all = await this.list();
 			return all.filter((tx) => tx.operation === operation);
+		},
+
+		async updateStatus(hash: string, status: TxRecord["status"]): Promise<void> {
+			const all = (await store.get<TxRecord[]>("tx-log")) ?? [];
+			const idx = all.findIndex((tx) => tx.hash === hash);
+			if (idx !== -1) {
+				all[idx].status = status;
+				await store.set("tx-log", all);
+			}
+		},
+
+		async pending(): Promise<TxRecord[]> {
+			const all = await this.list();
+			return all.filter((tx) => tx.status === "sent");
 		},
 
 		async isDuplicate(params: { to: string; value: string; chainId: number }): Promise<boolean> {

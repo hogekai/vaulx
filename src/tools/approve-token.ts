@@ -70,7 +70,7 @@ export function registerApproveToken(server: MCPServer, ctx: ApproveTokenCtx) {
 						txParams: { to: token.address, value: 0n, chainId, data },
 						token: token.symbol,
 					},
-					{ signer, policyGuard: ctx.policyGuard, txLog: ctx.txLog },
+					{ signer, policyGuard: ctx.policyGuard, txLog: ctx.txLog, chainManager: ctx.chainManager },
 				);
 
 				return c.json({

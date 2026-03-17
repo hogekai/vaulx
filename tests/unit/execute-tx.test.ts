@@ -5,7 +5,15 @@ import { createPolicyGuard } from "../../src/guard/policy-guard.js";
 import { executeTx } from "../../src/helpers/execute-tx.js";
 import { createTxLog } from "../../src/log/tx-log.js";
 import type { SpendingPolicy } from "../../src/policy.js";
+import type { ChainManager } from "../../src/chain/manager.js";
 import type { Signer, TxParams } from "../../src/signer/types.js";
+
+// Minimal mock — trackReceipt calls getPublicClient but it's fire-and-forget so errors are swallowed
+const mockChainManager = {
+	getPublicClient: () => ({
+		waitForTransactionReceipt: async () => ({ status: "success" }),
+	}),
+} as unknown as ChainManager;
 
 function mockSigner(overrides: Partial<Signer> = {}): Signer {
 	return {
@@ -50,7 +58,7 @@ describe("executeTx", () => {
 				},
 				token: "ETH",
 			},
-			{ signer, policyGuard, txLog },
+			{ signer, policyGuard, txLog, chainManager: mockChainManager },
 		);
 
 		expect(result.hash).toBe("0xhash");
@@ -73,7 +81,7 @@ describe("executeTx", () => {
 				},
 				token: "ETH",
 			},
-			{ signer: mockSigner(), policyGuard, txLog },
+			{ signer: mockSigner(), policyGuard, txLog, chainManager: mockChainManager },
 		);
 
 		const list = await txLog.list();
@@ -96,7 +104,7 @@ describe("executeTx", () => {
 					},
 					token: "ETH",
 				},
-				{ signer: mockSigner(), policyGuard, txLog },
+				{ signer: mockSigner(), policyGuard, txLog, chainManager: mockChainManager },
 			),
 		).rejects.toThrow(VaulxError);
 
@@ -111,7 +119,7 @@ describe("executeTx", () => {
 					},
 					token: "ETH",
 				},
-				{ signer: mockSigner(), policyGuard, txLog },
+				{ signer: mockSigner(), policyGuard, txLog, chainManager: mockChainManager },
 			);
 		} catch (e) {
 			expect((e as VaulxError).code).toBe("POLICY_VIOLATION");
@@ -138,7 +146,7 @@ describe("executeTx", () => {
 					},
 					token: "ETH",
 				},
-				{ signer: failSigner, policyGuard, txLog },
+				{ signer: failSigner, policyGuard, txLog, chainManager: mockChainManager },
 			);
 		} catch (e) {
 			expect((e as VaulxError).code).toBe("TX_FAILED");
@@ -159,14 +167,14 @@ describe("executeTx", () => {
 		// First call succeeds
 		await executeTx(
 			{ operation: "send", txParams: params, token: "ETH" },
-			{ signer, policyGuard, txLog },
+			{ signer, policyGuard, txLog, chainManager: mockChainManager },
 		);
 
 		// Second call with same params should be duplicate
 		try {
 			await executeTx(
 				{ operation: "send", txParams: params, token: "ETH" },
-				{ signer, policyGuard, txLog },
+				{ signer, policyGuard, txLog, chainManager: mockChainManager },
 			);
 			expect.fail("Should have thrown");
 		} catch (e) {

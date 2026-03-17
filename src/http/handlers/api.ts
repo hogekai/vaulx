@@ -85,7 +85,7 @@ export async function handleApiRoutes(
 
 			const result = await executeTx(
 				{ operation: "send", txParams: { to, value, chainId }, token },
-				{ signer: txSigner, policyGuard: ctx.policyGuard, txLog: ctx.txLog },
+				{ signer: txSigner, policyGuard: ctx.policyGuard, txLog: ctx.txLog, chainManager: ctx.chainManager },
 			);
 
 			jsonResponse(res, 200, result);

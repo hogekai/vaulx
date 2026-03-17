@@ -60,7 +60,7 @@ export function registerSendTransaction(server: MCPServer, ctx: SendTransactionC
 						txParams: { to, value, chainId },
 						token: args.token.toUpperCase(),
 					},
-					{ signer, policyGuard: ctx.policyGuard, txLog: ctx.txLog },
+					{ signer, policyGuard: ctx.policyGuard, txLog: ctx.txLog, chainManager: ctx.chainManager },
 				);
 
 				return c.json(result);

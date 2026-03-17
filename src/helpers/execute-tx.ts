@@ -1,6 +1,8 @@
+import type { ChainManager } from "../chain/manager.js";
 import { getChain } from "../config.js";
 import { VaulxError } from "../errors.js";
 import type { PolicyCheckParams, PolicyGuard } from "../guard/policy-guard.js";
+import { trackReceipt } from "../log/receipt-tracker.js";
 import type { TxLog } from "../log/tx-log.js";
 import type { Signer, TxParams } from "../signer/types.js";
 
@@ -16,6 +18,7 @@ export interface ExecuteTxDeps {
 	signer: Signer;
 	policyGuard: PolicyGuard;
 	txLog: TxLog;
+	chainManager: ChainManager;
 }
 
 export interface ExecuteTxResult {
@@ -30,7 +33,7 @@ export async function executeTx(
 	deps: ExecuteTxDeps,
 ): Promise<ExecuteTxResult> {
 	const { operation, txParams, token, policyExtra } = input;
-	const { signer, policyGuard, txLog } = deps;
+	const { signer, policyGuard, txLog, chainManager } = deps;
 
 	// 1. Policy check
 	const check = await policyGuard.check(operation, {
@@ -83,7 +86,10 @@ export async function executeTx(
 		status: "sent",
 	});
 
-	// 4. Result
+	// 5. Track receipt (fire-and-forget)
+	trackReceipt(hash, txParams.chainId, { chainManager, txLog });
+
+	// 6. Result
 	const chain = getChain(txParams.chainId);
 	return {
 		hash,

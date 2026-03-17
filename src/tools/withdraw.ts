@@ -112,7 +112,7 @@ async function withdrawNative(
 			txParams: { to, value, chainId },
 			token: "ETH",
 		},
-		{ signer, policyGuard: ctx.policyGuard, txLog: ctx.txLog },
+		{ signer, policyGuard: ctx.policyGuard, txLog: ctx.txLog, chainManager: ctx.chainManager },
 	);
 
 	return c.json({ ...result, amount: formatEther(value), token: "ETH" });
@@ -173,7 +173,7 @@ async function withdrawToken(
 			txParams: { to: token.address, value: 0n, chainId, data },
 			token: token.symbol,
 		},
-		{ signer, policyGuard: ctx.policyGuard, txLog: ctx.txLog },
+		{ signer, policyGuard: ctx.policyGuard, txLog: ctx.txLog, chainManager: ctx.chainManager },
 	);
 
 	return c.json({
