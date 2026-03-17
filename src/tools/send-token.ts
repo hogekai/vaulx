@@ -2,8 +2,11 @@ import type { MCPServer } from "@lynq/lynq";
 import { encodeFunctionData, erc20Abi, parseUnits } from "viem";
 import { z } from "zod";
 import type { ChainManager } from "../chain/manager.js";
-import { DEFAULT_CHAIN_ID, getChain, resolveChainId } from "../config.js";
+import { DEFAULT_CHAIN_ID, resolveChainId } from "../config.js";
+import { VaulxError } from "../errors.js";
 import type { PolicyGuard } from "../guard/policy-guard.js";
+import { executeTx } from "../helpers/execute-tx.js";
+import { validateAddress, validateAmount } from "../helpers/validate.js";
 import type { TxLog } from "../log/tx-log.js";
 import type { TokenRegistry } from "../token/registry.js";
 
@@ -37,71 +40,57 @@ export function registerSendToken(server: MCPServer, ctx: SendTokenCtx) {
 				.refine((d) => d.value || d.amount, "value or amount required"),
 		},
 		async (args, c) => {
-			const to = (args.to || args.recipient) as `0x${string}`;
-			const tokenAmount = args.value || args.amount!;
-			const chainId = resolveChainId(args.chainId ?? args.network ?? DEFAULT_CHAIN_ID);
-			const signer = await ctx.chainManager.getSigner(chainId);
+			try {
+				const to = validateAddress((args.to || args.recipient)!);
+				const tokenAmount = validateAmount((args.value || args.amount)!, "value");
+				const chainId = resolveChainId(args.chainId ?? args.network ?? DEFAULT_CHAIN_ID);
+				const signer = await ctx.chainManager.getSigner(chainId);
 
-			const token = ctx.tokenRegistry.resolve(chainId, args.token);
-			if (!token) {
-				return c.error(
-					`Token "${args.token}" not found on chain ${chainId}. Check supported tokens.`,
-				);
-			}
-
-			const rawAmount = parseUnits(tokenAmount, token.decimals);
-
-			// Check native balance for gas (skip with paymaster)
-			if (!signer.hasPaymaster) {
-				const balance = await signer.getBalance(chainId);
-				if (balance === 0n) {
-					return c.error("No native token balance for gas. Deposit ETH first.");
+				// Tool-specific: resolve token
+				const token = ctx.tokenRegistry.resolve(chainId, args.token);
+				if (!token) {
+					throw new VaulxError(
+						`Token "${args.token}" not found on chain ${chainId}`,
+						"UNKNOWN_TOKEN",
+					);
 				}
+
+				const rawAmount = parseUnits(tokenAmount, token.decimals);
+
+				// Tool-specific: gas check for ERC20 (need native for gas)
+				if (!signer.hasPaymaster) {
+					const balance = await signer.getBalance(chainId);
+					if (balance === 0n) {
+						throw new VaulxError(
+							"No native token balance for gas. Deposit ETH first.",
+							"INSUFFICIENT_GAS",
+						);
+					}
+				}
+
+				// Tool-specific: encode ERC20 transfer
+				const data = encodeFunctionData({
+					abi: erc20Abi,
+					functionName: "transfer",
+					args: [to, rawAmount],
+				});
+
+				const result = await executeTx(
+					{
+						operation: "send_token",
+						txParams: { to: token.address, value: 0n, chainId, data },
+						token: token.symbol,
+					},
+					{ signer, policyGuard: ctx.policyGuard, txLog: ctx.txLog },
+				);
+
+				return c.json({ ...result, token: token.symbol, amount: tokenAmount });
+			} catch (e) {
+				if (e instanceof VaulxError) {
+					return c.error(`[${e.code}] ${e.message}`);
+				}
+				return c.error(`[SIGNER_ERROR] ${e instanceof Error ? e.message : "Unknown error"}`);
 			}
-
-			const check = await ctx.policyGuard.check("send", {
-				value: rawAmount,
-				to,
-				chainId,
-				token: args.token.toUpperCase(),
-			});
-			if (!check.ok) {
-				return c.error(`Policy rejected: ${check.reason}`);
-			}
-
-			const data = encodeFunctionData({
-				abi: erc20Abi,
-				functionName: "transfer",
-				args: [to, rawAmount],
-			});
-
-			const hash = await signer.sendTransaction({
-				to: token.address,
-				value: 0n,
-				chainId,
-				data,
-			});
-
-			await ctx.txLog.record({
-				hash,
-				chainId,
-				to,
-				value: rawAmount.toString(),
-				token: token.symbol,
-				operation: "send_token",
-				timestamp: new Date().toISOString(),
-				status: "sent",
-			});
-
-			const chain = getChain(chainId);
-			return c.json({
-				hash,
-				chainId,
-				token: token.symbol,
-				amount: tokenAmount,
-				explorer: chain.blockExplorer ? `${chain.blockExplorer}/tx/${hash}` : undefined,
-				proof: { type: "tx_hash", value: hash },
-			});
 		},
 	);
 }
