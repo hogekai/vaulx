@@ -25,7 +25,7 @@ export async function saveToKeychain(walletName: string, privateKey: string): Pr
 			}
 
 			execSync(
-				`security add-generic-password -s "${SERVICE_NAME}" -a "${walletName}" -w "${privateKey}" -T ""`,
+				`security add-generic-password -s "${SERVICE_NAME}" -a "${walletName}" -w "${privateKey}"`,
 				{ stdio: "ignore" },
 			);
 			return true;
