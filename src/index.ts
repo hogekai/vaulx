@@ -26,6 +26,7 @@ import { registerSendToken } from "./tools/send-token.js";
 import { registerSendTransaction } from "./tools/send-transaction.js";
 import { registerSignMessage } from "./tools/sign-message.js";
 import { registerSwapToken } from "./tools/swap-token.js";
+import { registerWalletManagement } from "./tools/wallet-management.js";
 import { registerWithdraw } from "./tools/withdraw.js";
 
 validateConfig();
@@ -72,6 +73,8 @@ registerGetAddress(server, chainManager);
 registerGetTransactions(server, txLog);
 registerGetOnchainHistory(server, { chainManager });
 registerGetSpending(server, { chainManager, policyGuard, store });
+
+registerWalletManagement(server, { chainManager, policyGuard });
 
 if (ENABLE_SWAP) {
 	registerSwapToken(server, toolCtx);

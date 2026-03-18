@@ -6,7 +6,7 @@ import { CHAINS, DEFAULT_CHAIN_ID, PIMLICO_API_KEY, PRIVATE_KEY } from "../confi
 import { deploySmartAccount } from "./deploy.js";
 import { init } from "./init.js";
 import { deleteFromKeychain } from "./keychain.js";
-import { ask, askWithDefault, close, confirm } from "./prompts.js";
+import { ask, askWithDefault, close, confirm, select } from "./prompts.js";
 import { registerHook, registerMCP } from "./register.js";
 import { createSessionKey } from "./session.js";
 import {
@@ -100,8 +100,22 @@ async function listCommand(): Promise<void> {
 
 async function switchCommand(name: string | undefined): Promise<void> {
 	if (!name) {
-		console.error("Usage: vaulx switch <wallet-name>");
-		process.exit(1);
+		if (process.stdin.isTTY) {
+			migrateIfNeeded();
+			const wallets = listWallets();
+			if (wallets.length === 0) {
+				console.error("No wallets. Run: vaulx init");
+				process.exit(1);
+			}
+			const options = wallets.map((w) => ({
+				label: `${w.name} ${w.address ? `(${w.address.slice(0, 8)}...)` : ""}`,
+				value: w.name,
+			}));
+			name = await select("Switch to:", options);
+		} else {
+			console.error("Usage: vaulx switch <wallet-name>");
+			process.exit(1);
+		}
 	}
 	if (!walletExists(name)) {
 		console.error(`❌ Wallet "${name}" does not exist`);
@@ -129,8 +143,23 @@ async function switchCommand(name: string | undefined): Promise<void> {
 
 async function deleteCommand(name: string | undefined): Promise<void> {
 	if (!name) {
-		console.error("Usage: vaulx delete <wallet-name>");
-		process.exit(1);
+		if (process.stdin.isTTY) {
+			migrateIfNeeded();
+			const wallets = listWallets().filter((w) => w.name !== "default");
+			if (wallets.length === 0) {
+				console.error("No wallets to delete (default cannot be deleted).");
+				close();
+				process.exit(0);
+			}
+			const options = wallets.map((w) => ({
+				label: `${w.name} ${w.address ? `(${w.address.slice(0, 8)}...)` : ""}`,
+				value: w.name,
+			}));
+			name = await select("Delete:", options);
+		} else {
+			console.error("Usage: vaulx delete <wallet-name>");
+			process.exit(1);
+		}
 	}
 	if (name === "default") {
 		console.error("❌ Cannot delete the default wallet");
@@ -204,13 +233,57 @@ switch (command) {
 		break;
 	}
 	default:
-		console.error("Usage: vaulx <command>\n");
-		console.error("Commands:");
-		console.error("  init [--name <n>]  Create a new wallet");
-		console.error("  list               List all wallets");
-		console.error("  switch <name>      Switch active wallet");
-		console.error("  delete <name>      Delete a wallet");
-		console.error("  active             Show active wallet");
-		console.error("  setup              Deploy smart account (advanced)");
-		process.exit(1);
+		if (process.stdin.isTTY) {
+			await interactiveMenu();
+		} else {
+			console.error("Usage: vaulx <command>\n");
+			console.error("Commands:");
+			console.error("  init [--name <n>]  Create a new wallet");
+			console.error("  list               List all wallets");
+			console.error("  switch <name>      Switch active wallet");
+			console.error("  delete <name>      Delete a wallet");
+			console.error("  active             Show active wallet");
+			console.error("  setup              Deploy smart account (advanced)");
+			process.exit(1);
+		}
+}
+
+async function interactiveMenu(): Promise<void> {
+	console.error("\nvaulx — Agent Wallet Manager\n");
+
+	const MENU = [
+		{ label: "Create new wallet (init)", value: "init" },
+		{ label: "List wallets", value: "list" },
+		{ label: "Switch wallet", value: "switch" },
+		{ label: "Delete wallet", value: "delete" },
+		{ label: "Show active wallet", value: "active" },
+		{ label: "Deploy smart account (setup)", value: "setup" },
+	];
+
+	const choice = await select("What do you want to do?", MENU);
+
+	switch (choice) {
+		case "init":
+			await init({});
+			break;
+		case "list":
+			await listCommand();
+			break;
+		case "switch":
+			await switchCommand(undefined);
+			break;
+		case "delete":
+			await deleteCommand(undefined);
+			break;
+		case "active": {
+			migrateIfNeeded();
+			const config = loadConfig();
+			console.error(`Active wallet: ${config.active}`);
+			break;
+		}
+		case "setup":
+			await setup();
+			break;
+	}
+	close();
 }

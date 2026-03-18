@@ -1,6 +1,6 @@
 import type { PublicClient } from "viem";
 import { getPublicClient } from "../client.js";
-import { CHAINS, type ChainConfig, DEFAULT_CHAIN_ID, WALLET_MODE } from "../config.js";
+import { CHAINS, type ChainConfig, getDefaultChainId, getWalletMode } from "../config.js";
 import { createSignerForChain } from "../signer/factory.js";
 import type { Signer } from "../signer/types.js";
 
@@ -9,6 +9,8 @@ export interface ChainManager {
 	defaultChainId: number;
 	getPublicClient(chainId: number): PublicClient;
 	getSigner(chainId: number): Promise<Signer>;
+	/** Clear all cached signers. Next getSigner() creates fresh. */
+	reset(): void;
 }
 
 export function createChainManager(): ChainManager {
@@ -19,8 +21,10 @@ export function createChainManager(): ChainManager {
 	let sharedSigner: Signer | null = null;
 
 	async function getOrCreateSigner(chainId: number): Promise<Signer> {
+		const mode = getWalletMode();
+
 		// env and browser signers are chain-agnostic
-		if (WALLET_MODE === "env" || WALLET_MODE === "browser") {
+		if (mode === "env" || mode === "browser") {
 			if (!sharedSigner) {
 				sharedSigner = await createSignerForChain(chainId);
 			}
@@ -37,7 +41,9 @@ export function createChainManager(): ChainManager {
 	}
 
 	return {
-		defaultChainId: DEFAULT_CHAIN_ID,
+		get defaultChainId() {
+			return getDefaultChainId();
+		},
 
 		chains() {
 			return Object.entries(CHAINS).map(([id, config]) => ({
@@ -56,6 +62,11 @@ export function createChainManager(): ChainManager {
 
 		async getSigner(chainId: number): Promise<Signer> {
 			return getOrCreateSigner(chainId);
+		},
+
+		reset(): void {
+			signerCache.clear();
+			sharedSigner = null;
 		},
 	};
 }

@@ -115,6 +115,26 @@ export const EXPLORER_API_KEY = process.env.EXPLORER_API_KEY || "";
 export const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
 export const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY || "";
 
+// Dynamic getters — read process.env at call time (for hot-swap after wallet switch)
+export function getWalletMode() {
+	return (process.env.WALLET_MODE || "env") as "env" | "browser" | "smart-account" | "session-key";
+}
+export function getPrivateKey() {
+	return process.env.PRIVATE_KEY as `0x${string}` | undefined;
+}
+export function getDefaultChainId() {
+	return Number(process.env.DEFAULT_CHAIN_ID) || 84532;
+}
+export function getSessionKey() {
+	return process.env.SESSION_KEY as `0x${string}` | undefined;
+}
+export function getSmartAccountAddress() {
+	return process.env.SMART_ACCOUNT_ADDRESS as `0x${string}` | undefined;
+}
+export function getPimlicoApiKey() {
+	return process.env.PIMLICO_API_KEY || "";
+}
+
 export function validateConfig(): void {
 	const errors: string[] = [];
 

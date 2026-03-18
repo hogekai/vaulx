@@ -15,11 +15,21 @@ export interface PolicyGuard {
 		params: PolicyCheckParams,
 	): Promise<{ ok: true } | { ok: false; reason: string }>;
 	policy: SpendingPolicy;
+	/** Replace policy at runtime (for wallet hot-swap). */
+	reload(newPolicy: SpendingPolicy): void;
 }
 
-export function createPolicyGuard(policy: SpendingPolicy, store: Store): PolicyGuard {
+export function createPolicyGuard(initialPolicy: SpendingPolicy, store: Store): PolicyGuard {
+	let policy = initialPolicy;
+
 	return {
-		policy,
+		get policy() {
+			return policy;
+		},
+
+		reload(newPolicy: SpendingPolicy): void {
+			policy = newPolicy;
+		},
 
 		async check(operation, params) {
 			// Check expiry

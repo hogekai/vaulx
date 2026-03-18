@@ -1,11 +1,11 @@
 import {
 	getBundlerUrl,
 	getPaymasterUrl,
-	PIMLICO_API_KEY,
-	PRIVATE_KEY,
-	SESSION_KEY,
-	SMART_ACCOUNT_ADDRESS,
-	WALLET_MODE,
+	getPimlicoApiKey,
+	getPrivateKey,
+	getSessionKey,
+	getSmartAccountAddress,
+	getWalletMode,
 	WALLET_PORT,
 } from "../config.js";
 import { createBrowserSigner } from "./browser.js";
@@ -15,29 +15,37 @@ import { createSmartAccountSigner } from "./smart-account.js";
 import type { Signer } from "./types.js";
 
 export async function createSignerForChain(chainId: number): Promise<Signer> {
-	switch (WALLET_MODE) {
+	const mode = getWalletMode();
+	switch (mode) {
 		case "env":
 			return createEnvSigner();
 		case "browser":
 			return createBrowserSigner(WALLET_PORT);
-		case "smart-account":
-			if (!PRIVATE_KEY) throw new Error("PRIVATE_KEY required for smart-account mode");
+		case "smart-account": {
+			const privateKey = getPrivateKey();
+			if (!privateKey) throw new Error("PRIVATE_KEY required for smart-account mode");
+			const pimlicoKey = getPimlicoApiKey();
 			return createSmartAccountSigner({
-				ownerPrivateKey: PRIVATE_KEY,
+				ownerPrivateKey: privateKey,
 				chainId,
 				bundlerUrl: getBundlerUrl(chainId),
-				paymasterUrl: PIMLICO_API_KEY ? getPaymasterUrl(chainId) : undefined,
+				paymasterUrl: pimlicoKey ? getPaymasterUrl(chainId) : undefined,
 			});
-		case "session-key":
-			if (!SESSION_KEY) throw new Error("SESSION_KEY required for session-key mode");
-			if (!SMART_ACCOUNT_ADDRESS)
+		}
+		case "session-key": {
+			const sessionKey = getSessionKey();
+			if (!sessionKey) throw new Error("SESSION_KEY required for session-key mode");
+			const smartAccountAddress = getSmartAccountAddress();
+			if (!smartAccountAddress)
 				throw new Error("SMART_ACCOUNT_ADDRESS required for session-key mode");
+			const pimlicoKey = getPimlicoApiKey();
 			return createSessionKeySigner({
-				sessionKey: SESSION_KEY,
-				smartAccountAddress: SMART_ACCOUNT_ADDRESS,
+				sessionKey,
+				smartAccountAddress,
 				chainId,
 				bundlerUrl: getBundlerUrl(chainId),
-				paymasterUrl: PIMLICO_API_KEY ? getPaymasterUrl(chainId) : undefined,
+				paymasterUrl: pimlicoKey ? getPaymasterUrl(chainId) : undefined,
 			});
+		}
 	}
 }

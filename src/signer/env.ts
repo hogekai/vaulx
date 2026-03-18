@@ -1,7 +1,7 @@
 import { createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { getPublicClient, getViemChain } from "../client.js";
-import { getRpcUrl, PRIVATE_KEY } from "../config.js";
+import { getPrivateKey, getRpcUrl } from "../config.js";
 import type { Signer, TxParams } from "./types.js";
 
 export class NonceManager {
@@ -23,11 +23,12 @@ export class NonceManager {
 }
 
 export function createEnvSigner(): Signer {
-	if (!PRIVATE_KEY) {
+	const privateKey = getPrivateKey();
+	if (!privateKey) {
 		throw new Error("PRIVATE_KEY environment variable is required");
 	}
 
-	const account = privateKeyToAccount(PRIVATE_KEY);
+	const account = privateKeyToAccount(privateKey);
 	const nonces = new NonceManager();
 
 	function getWalletClient(chainId: number) {
