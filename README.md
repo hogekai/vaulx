@@ -28,7 +28,37 @@ npx @vaulx/vaulx active                 # Show active wallet
 npx @vaulx/vaulx delete defi            # Delete wallet
 ```
 
-Each wallet has its own `.env`, spending policy, and transaction database under `~/.vaulx/wallets/{name}/`. Switching re-registers the MCP server and hook — restart Claude Code to apply.
+Each wallet has its own `.env`, spending policy, and transaction database under `~/.vaulx/wallets/{name}/`.
+
+### Interactive Mode
+
+Run `vaulx` without arguments to get an interactive menu:
+
+```bash
+npx @vaulx/vaulx
+
+# vaulx — Agent Wallet Manager
+#
+# ? What do you want to do?
+#   1. Create new wallet (init)
+#   2. List wallets
+#   3. Switch wallet
+#   ...
+```
+
+`switch` and `delete` also show a wallet picker when no name is given.
+
+### MCP Wallet Management
+
+Manage wallets directly from Claude Code — no terminal needed:
+
+| Tool | Description |
+|------|-------------|
+| `list_wallets` | List all wallets with addresses and active status |
+| `switch_wallet` | Hot-swap active wallet (no server restart) |
+| `create_wallet` | Generate a new wallet and optionally switch to it |
+
+`switch_wallet` replaces the signer at runtime — all subsequent operations use the new wallet immediately.
 
 ## Fund Your Wallet
 
@@ -51,6 +81,9 @@ After `init`, fund the address shown:
 | `get_balance` | Native + ERC20 balances |
 | `get_transactions` | Transaction history |
 | `get_spending` | Daily/total spend + remaining limits |
+| `list_wallets` | List all wallets with active status |
+| `switch_wallet` | Hot-swap active wallet (no restart) |
+| `create_wallet` | Generate new wallet |
 
 ## MCP Resources
 
