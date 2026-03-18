@@ -1,9 +1,12 @@
 # Changelog
 
-## [0.5.1] - 2026-03-18
+## [0.5.2] - 2026-03-18
 
 ### Changed
 - `/release` command now automates tag push and GitHub Release creation
+
+### Fixed
+- Add `repository` field to package.json for npm provenance verification
 
 ## [0.5.0] - 2026-03-18
 
