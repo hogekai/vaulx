@@ -25,10 +25,7 @@ export function registerSendTransaction(server: MCPServer, ctx: SendTransactionC
 				recipient: z.string().optional().describe("Alias for 'to' (agentPayment compat)"),
 				value: z.string().optional().describe("Amount in ETH (e.g. '0.01')"),
 				amount: z.string().optional().describe("Alias for 'value' (agentPayment compat)"),
-				chainId: z
-					.union([z.string(), z.number()])
-					.optional()
-					.describe("Chain ID or network alias"),
+				chainId: z.union([z.string(), z.number()]).optional().describe("Chain ID or network alias"),
 				network: z.string().optional().describe("Network alias (e.g. 'base-sepolia')"),
 				token: z.string().default("ETH").describe("Token symbol"),
 			}),

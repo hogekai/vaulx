@@ -1,8 +1,4 @@
-import {
-	BASESCAN_API_KEY,
-	ETHERSCAN_API_KEY,
-	EXPLORER_API_KEY,
-} from "../config.js";
+import { BASESCAN_API_KEY, ETHERSCAN_API_KEY, EXPLORER_API_KEY } from "../config.js";
 import { VaulxError } from "../errors.js";
 
 const EXPLORER_API_URLS: Record<number, string> = {
@@ -48,21 +44,19 @@ export async function fetchExplorerApi<T>(
 
 	const res = await fetch(url.toString());
 	if (!res.ok) {
-		throw new VaulxError(
-			`Explorer API HTTP ${res.status}`,
-			"EXPLORER_ERROR",
-			{ chainId, status: res.status },
-		);
+		throw new VaulxError(`Explorer API HTTP ${res.status}`, "EXPLORER_ERROR", {
+			chainId,
+			status: res.status,
+		});
 	}
 
 	const json = (await res.json()) as ExplorerResponse<T>;
 	if (json.status !== "1" && json.message !== "No transactions found") {
 		const msg = typeof json.result === "string" ? json.result : json.message;
-		throw new VaulxError(
-			`Explorer API error: ${msg}`,
-			"EXPLORER_ERROR",
-			{ chainId, message: json.message },
-		);
+		throw new VaulxError(`Explorer API error: ${msg}`, "EXPLORER_ERROR", {
+			chainId,
+			message: json.message,
+		});
 	}
 
 	return json.result;

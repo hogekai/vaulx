@@ -43,7 +43,7 @@ export function saveConfig(config: VaulxConfig): void {
 	if (!fs.existsSync(VAULX_HOME)) {
 		fs.mkdirSync(VAULX_HOME, { recursive: true });
 	}
-	fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, "\t") + "\n");
+	fs.writeFileSync(CONFIG_PATH, `${JSON.stringify(config, null, "\t")}\n`);
 }
 
 export function walletDir(name: string): string {
@@ -148,10 +148,7 @@ export function migrateIfNeeded(): void {
 		/^WALLET_POLICY=.+$/m,
 		`WALLET_POLICY=${path.join(newDir, "wallet-policy.json")}`,
 	);
-	updated = updated.replace(
-		/^WALLET_DB=.+$/m,
-		`WALLET_DB=${path.join(newDir, "vaulx.db")}`,
-	);
+	updated = updated.replace(/^WALLET_DB=.+$/m, `WALLET_DB=${path.join(newDir, "vaulx.db")}`);
 	fs.writeFileSync(envPath, updated);
 
 	saveConfig({ active: "default", keyStorage: "file" });

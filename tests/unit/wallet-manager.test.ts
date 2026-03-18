@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import { afterAll, describe, expect, test } from "vitest";
 
 // Set VAULX_HOME_OVERRIDE BEFORE importing wallet-manager
 // The module reads this env var at load time
@@ -66,7 +66,7 @@ describe("WalletManager", () => {
 		const existed = fs.existsSync(walletsDir);
 		if (existed) {
 			// If previous tests created it, remove temporarily
-			const backup = walletsDir + ".bak";
+			const backup = `${walletsDir}.bak`;
 			fs.renameSync(walletsDir, backup);
 			expect(listWallets()).toEqual([]);
 			fs.renameSync(backup, walletsDir);
@@ -115,10 +115,7 @@ describe("WalletManager", () => {
 
 		// Create old-style flat layout
 		fs.mkdirSync(VAULX_HOME, { recursive: true });
-		fs.writeFileSync(
-			path.join(VAULX_HOME, ".env"),
-			"PRIVATE_KEY=0xabc\nDEFAULT_CHAIN_ID=84532\n",
-		);
+		fs.writeFileSync(path.join(VAULX_HOME, ".env"), "PRIVATE_KEY=0xabc\nDEFAULT_CHAIN_ID=84532\n");
 		fs.writeFileSync(path.join(VAULX_HOME, "wallet-policy.json"), '{"maxPerTx":"100"}');
 
 		migrateIfNeeded();

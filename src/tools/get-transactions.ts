@@ -8,7 +8,10 @@ export function registerGetTransactions(server: MCPServer, txLog: TxLog) {
 		{
 			description: "Get transaction history. Returns recent transactions sent by this wallet.",
 			input: z.object({
-				limit: z.number().optional().describe("Number of recent transactions to return (default: all)"),
+				limit: z
+					.number()
+					.optional()
+					.describe("Number of recent transactions to return (default: all)"),
 			}),
 		},
 		async (args, c) => {

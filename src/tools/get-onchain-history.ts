@@ -51,10 +51,7 @@ function getDirection(from: string, to: string, wallet: string): "in" | "out" | 
 	return "in";
 }
 
-export function registerGetOnchainHistory(
-	server: MCPServer,
-	ctx: { chainManager: ChainManager },
-) {
+export function registerGetOnchainHistory(server: MCPServer, ctx: { chainManager: ChainManager }) {
 	server.tool(
 		"get_onchain_history",
 		{

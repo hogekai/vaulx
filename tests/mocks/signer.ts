@@ -13,7 +13,7 @@ const DEFAULT_ADDRESS = "0x1111111111111111111111111111111111111111" as const;
 
 export function createMockSigner(options: MockSignerOptions = {}): Signer {
 	const calls = options.calls ?? [];
-	let callCount = 0;
+	let _callCount = 0;
 
 	return {
 		mode: options.mode ?? "env",
@@ -25,7 +25,7 @@ export function createMockSigner(options: MockSignerOptions = {}): Signer {
 
 		async sendTransaction(params: TxParams) {
 			calls.push(params);
-			callCount++;
+			_callCount++;
 			if (options.sendError) throw options.sendError;
 			return `0x${"ab".repeat(32)}` as `0x${string}`;
 		},

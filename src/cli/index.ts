@@ -15,7 +15,6 @@ import {
 	loadConfig,
 	migrateIfNeeded,
 	saveConfig,
-	validateWalletName,
 	walletDir,
 	walletExists,
 } from "./wallet-manager.js";
@@ -92,9 +91,7 @@ async function listCommand(): Promise<void> {
 	console.error("\n  Wallets:");
 	for (const w of wallets) {
 		const marker = w.name === config.active ? "●" : " ";
-		const addr = w.address
-			? `${w.address.slice(0, 6)}...${w.address.slice(-4)}`
-			: "???";
+		const addr = w.address ? `${w.address.slice(0, 6)}...${w.address.slice(-4)}` : "???";
 		const chainName = w.chainId ? (CHAINS[w.chainId]?.name ?? String(w.chainId)) : "???";
 		console.error(`  ${marker} ${w.name.padEnd(15)} ${addr}   ${chainName}`);
 	}
@@ -144,10 +141,7 @@ async function deleteCommand(name: string | undefined): Promise<void> {
 		process.exit(1);
 	}
 
-	const answer = await askWithDefault(
-		`Delete wallet "${name}"? This cannot be undone. (y/N)`,
-		"N",
-	);
+	const answer = await askWithDefault(`Delete wallet "${name}"? This cannot be undone. (y/N)`, "N");
 	if (answer.toLowerCase() !== "y") {
 		console.error("Aborted.");
 		close();

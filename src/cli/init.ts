@@ -3,10 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { privateKeyToAccount } from "viem/accounts";
 import { CHAINS, NETWORK_ALIASES } from "../config.js";
-import { addressBox } from "./qr.js";
-import { askWithDefault, close, select } from "./prompts.js";
-import { isAlreadyRegistered, registerHook, registerMCP } from "./register.js";
 import { isKeychainAvailable, saveToKeychain } from "./keychain.js";
+import { askWithDefault, close, select } from "./prompts.js";
+import { addressBox } from "./qr.js";
+import { isAlreadyRegistered, registerHook, registerMCP } from "./register.js";
 import {
 	createWalletDir,
 	loadConfig,
@@ -149,10 +149,7 @@ export async function init(options: InitOptions = {}): Promise<void> {
 
 	// 9. Set active + register
 	if (walletName !== config.active && !options.nonInteractive) {
-		const setActive = await askWithDefault(
-			`Set "${walletName}" as active wallet? (Y/n)`,
-			"Y",
-		);
+		const setActive = await askWithDefault(`Set "${walletName}" as active wallet? (Y/n)`, "Y");
 		if (setActive.toLowerCase() !== "n") {
 			config.active = walletName;
 			saveConfig(config);
@@ -255,18 +252,16 @@ WALLET_DB=${path.join(opts.wDir, "vaulx.db")}
 }
 
 function buildPolicyFile(maxPerTx: string, maxPerDay: string): string {
-	return (
-		JSON.stringify(
-			{
-				maxPerTx,
-				maxPerDay,
-				allowedTokens: ["ETH"],
-				allowedOperations: ["send", "send_token", "sign", "withdraw"],
-				allowedRecipients: [],
-				blockedRecipients: [],
-			},
-			null,
-			"\t",
-		) + "\n"
-	);
+	return `${JSON.stringify(
+		{
+			maxPerTx,
+			maxPerDay,
+			allowedTokens: ["ETH"],
+			allowedOperations: ["send", "send_token", "sign", "withdraw"],
+			allowedRecipients: [],
+			blockedRecipients: [],
+		},
+		null,
+		"\t",
+	)}\n`;
 }

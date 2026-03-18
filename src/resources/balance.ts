@@ -1,7 +1,7 @@
 import type { MCPServer } from "@lynq/lynq";
 import { formatEther } from "viem";
 import type { ChainManager } from "../chain/manager.js";
-import { DEFAULT_CHAIN_ID, getChain } from "../config.js";
+import { getChain } from "../config.js";
 
 export function registerBalanceResource(server: MCPServer, chainManager: ChainManager) {
 	const handler = async (uri: string) => {

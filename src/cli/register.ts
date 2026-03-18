@@ -48,7 +48,7 @@ export function registerMCP(options: RegisterOptions): void {
 	};
 
 	config.mcpServers = mcpServers;
-	fs.writeFileSync(mcpJsonPath, JSON.stringify(config, null, "\t") + "\n");
+	fs.writeFileSync(mcpJsonPath, `${JSON.stringify(config, null, "\t")}\n`);
 }
 
 /**
@@ -99,7 +99,7 @@ export function registerHook(options: RegisterOptions): void {
 
 	hooks.Elicitation = elicitations;
 	settings.hooks = hooks;
-	fs.writeFileSync(settingsPath, JSON.stringify(settings, null, "\t") + "\n");
+	fs.writeFileSync(settingsPath, `${JSON.stringify(settings, null, "\t")}\n`);
 }
 
 /**

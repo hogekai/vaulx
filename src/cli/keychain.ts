@@ -95,15 +95,13 @@ export async function deleteFromKeychain(walletName: string): Promise<void> {
 
 	try {
 		if (platform === "darwin") {
-			execSync(
-				`security delete-generic-password -s "${SERVICE_NAME}" -a "${walletName}"`,
-				{ stdio: "ignore" },
-			);
+			execSync(`security delete-generic-password -s "${SERVICE_NAME}" -a "${walletName}"`, {
+				stdio: "ignore",
+			});
 		} else if (platform === "linux") {
-			execSync(
-				`secret-tool clear service "${SERVICE_NAME}" wallet "${walletName}"`,
-				{ stdio: "ignore" },
-			);
+			execSync(`secret-tool clear service "${SERVICE_NAME}" wallet "${walletName}"`, {
+				stdio: "ignore",
+			});
 		}
 	} catch {
 		/* entry doesn't exist or keychain unavailable */

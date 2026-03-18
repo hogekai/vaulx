@@ -29,10 +29,7 @@ export function registerSendToken(server: MCPServer, ctx: SendTokenCtx) {
 				value: z.string().optional().describe("Amount in token units (e.g. '10' for 10 USDC)"),
 				amount: z.string().optional().describe("Alias for 'value' (agentPayment compat)"),
 				token: z.string().describe("Token symbol (e.g. 'USDC')"),
-				chainId: z
-					.union([z.string(), z.number()])
-					.optional()
-					.describe("Chain ID or network alias"),
+				chainId: z.union([z.string(), z.number()]).optional().describe("Chain ID or network alias"),
 				network: z.string().optional().describe("Network alias (e.g. 'base-sepolia')"),
 			}),
 		},
