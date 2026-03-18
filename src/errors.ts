@@ -17,7 +17,8 @@ export type VaulxErrorCode =
 	| "APPROVAL_EXCEEDED"
 	| "SLIPPAGE_EXCEEDED"
 	| "RPC_ERROR"
-	| "BUNDLER_ERROR";
+	| "BUNDLER_ERROR"
+	| "EXPLORER_ERROR";
 
 export class VaulxError extends Error {
 	constructor(

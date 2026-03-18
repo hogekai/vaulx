@@ -111,6 +111,9 @@ export const BUNDLER_URL = process.env.BUNDLER_URL || "";
 export const PAYMASTER_URL = process.env.PAYMASTER_URL || "";
 export const CUSTOM_TOKENS = process.env.CUSTOM_TOKENS || "";
 export const ENABLE_SWAP = process.env.ENABLE_SWAP === "true";
+export const EXPLORER_API_KEY = process.env.EXPLORER_API_KEY || "";
+export const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
+export const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY || "";
 
 export function validateConfig(): void {
 	const errors: string[] = [];

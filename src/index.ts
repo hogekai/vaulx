@@ -19,6 +19,7 @@ import { registerApproveToken } from "./tools/approve-token.js";
 import { registerGetAddress } from "./tools/get-address.js";
 import { registerGetBalance } from "./tools/get-balance.js";
 import { registerGetSpending } from "./tools/get-spending.js";
+import { registerGetOnchainHistory } from "./tools/get-onchain-history.js";
 import { registerGetTransactions } from "./tools/get-transactions.js";
 import { registerRevokeToken } from "./tools/revoke-token.js";
 import { registerSendToken } from "./tools/send-token.js";
@@ -69,6 +70,7 @@ registerRevokeToken(server, toolCtx);
 registerGetBalance(server, { chainManager, tokenRegistry });
 registerGetAddress(server, chainManager);
 registerGetTransactions(server, txLog);
+registerGetOnchainHistory(server, { chainManager });
 registerGetSpending(server, { chainManager, policyGuard, store });
 
 if (ENABLE_SWAP) {
