@@ -99,8 +99,13 @@ src/
 │       ├── confirm.ts      — TX confirmation page
 │       └── sign.ts         — Message signing page
 ├── cli/
-│   ├── index.ts            — CLI entry: `vaulx setup`
+│   ├── index.ts            — CLI entry: init/list/switch/delete/active/setup
+│   ├── init.ts             — Wallet creation (--name, keychain, wallets/ dirs)
+│   ├── wallet-manager.ts   — config.json CRUD, wallet dirs, migration
+│   ├── keychain.ts         — OS keychain save/load/delete (macOS + Linux)
+│   ├── register.ts         — MCP + hook registration (wallet-aware paths)
 │   ├── prompts.ts          — readline helpers
+│   ├── qr.ts               — Address display box
 │   ├── deploy.ts           — Smart account deployment
 │   └── session.ts          — Session key creation
 hooks/
@@ -126,6 +131,29 @@ hooks/
 | `SESSION_KEY` | session-key mode | — |
 | `BUNDLER_URL` | No | Auto from Pimlico |
 | `PAYMASTER_URL` | No | Auto from Pimlico |
+| `WALLET_ADDRESS` | No | Set by `vaulx init` |
+| `VAULX_WALLET_NAME` | No | Set by `vaulx init` |
+
+## Multi-Wallet
+
+Each wallet lives in `~/.vaulx/wallets/{name}/` with its own `.env`, `wallet-policy.json`, and `vaulx.db`. The active wallet is tracked in `~/.vaulx/config.json`:
+
+```json
+{ "active": "default", "keyStorage": "keychain" }
+```
+
+`keyStorage` controls where private keys are stored: `"keychain"` (OS keychain, default) or `"file"` (.env fallback).
+
+### CLI
+
+```bash
+vaulx init [--name <n>]    # Create wallet (default: "default")
+vaulx list                 # List all wallets
+vaulx switch <name>        # Switch active wallet
+vaulx delete <name>        # Delete wallet (not "default")
+vaulx active               # Show active wallet name
+vaulx setup                # Deploy smart account (advanced)
+```
 
 ## Supported chains
 

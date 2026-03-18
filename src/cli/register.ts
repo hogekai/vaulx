@@ -2,22 +2,21 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { walletDir } from "./wallet-manager.js";
 
-const VAULX_HOME = path.join(os.homedir(), ".vaulx");
-
-/** パッケージルート（src/cli/register.ts → ../../） */
+/** Package root (src/cli/register.ts → ../../) */
 const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 export interface RegisterOptions {
 	chainId: number;
 	authToken: string;
 	port: number;
+	walletName?: string;
 }
 
 /**
- * ~/.mcp.json に vaulx を登録
- * 秘密鍵は入れない。.env ファイルパスだけ渡す。
- * command は node + dist/start.js（tsx 不要）
+ * Register vaulx in ~/.mcp.json.
+ * No secrets — only .env file path and auth token.
  */
 export function registerMCP(options: RegisterOptions): void {
 	const mcpJsonPath = path.join(os.homedir(), ".mcp.json");
@@ -32,15 +31,17 @@ export function registerMCP(options: RegisterOptions): void {
 	}
 
 	const mcpServers = (config.mcpServers ?? {}) as Record<string, unknown>;
+	const name = options.walletName ?? "default";
 
 	mcpServers.vaulx = {
 		type: "stdio",
 		command: "node",
 		args: [path.join(PKG_ROOT, "dist", "start.js")],
 		env: {
-			VAULX_ENV_FILE: path.join(VAULX_HOME, ".env"),
+			VAULX_ENV_FILE: path.join(walletDir(name), ".env"),
 			WALLET_PORT: String(options.port),
 			WALLET_AUTH_TOKEN: options.authToken,
+			VAULX_WALLET_NAME: name,
 		},
 	};
 
@@ -49,7 +50,7 @@ export function registerMCP(options: RegisterOptions): void {
 }
 
 /**
- * ~/.claude/settings.json に Elicitation フックを登録
+ * Register Elicitation hook in ~/.claude/settings.json.
  */
 export function registerHook(options: RegisterOptions): void {
 	const settingsDir = path.join(os.homedir(), ".claude");
@@ -100,7 +101,7 @@ export function registerHook(options: RegisterOptions): void {
 }
 
 /**
- * 既に登録済みか
+ * Check if already registered.
  */
 export function isAlreadyRegistered(): { mcp: boolean; hook: boolean } {
 	const mcpJsonPath = path.join(os.homedir(), ".mcp.json");

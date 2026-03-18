@@ -1,16 +1,23 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { privateKeyToAccount } from "viem/accounts";
 import { CHAINS, NETWORK_ALIASES } from "../config.js";
 import { addressBox } from "./qr.js";
 import { askWithDefault, close, select } from "./prompts.js";
 import { isAlreadyRegistered, registerHook, registerMCP } from "./register.js";
+import { isKeychainAvailable, saveToKeychain } from "./keychain.js";
+import {
+	createWalletDir,
+	loadConfig,
+	migrateIfNeeded,
+	saveConfig,
+	validateWalletName,
+	walletExists,
+} from "./wallet-manager.js";
 
-const VAULX_HOME = path.join(os.homedir(), ".vaulx");
-
-interface InitOptions {
+export interface InitOptions {
+	name?: string;
 	chain?: string;
 	nonInteractive?: boolean;
 	maxPerTx?: string;
@@ -25,9 +32,14 @@ const CHAIN_CHOICES = [
 ];
 
 export async function init(options: InitOptions = {}): Promise<void> {
-	console.error("\nvaulx — Agent Wallet Setup\n");
+	migrateIfNeeded();
 
-	// 1. チェーン選択
+	const walletName = options.name ?? "default";
+	validateWalletName(walletName);
+
+	console.error(`\nvaulx — Agent Wallet Setup (${walletName})\n`);
+
+	// 1. Chain selection
 	let chainId: number;
 	if (options.chain) {
 		chainId = NETWORK_ALIASES[options.chain] ?? Number(options.chain);
@@ -44,7 +56,7 @@ export async function init(options: InitOptions = {}): Promise<void> {
 		process.exit(1);
 	}
 
-	// 2. ポリシー設定
+	// 2. Policy
 	let maxPerTxWei: string;
 	let maxPerDayWei: string;
 
@@ -58,23 +70,12 @@ export async function init(options: InitOptions = {}): Promise<void> {
 		maxPerDayWei = ethToWei(dayInput);
 	}
 
-	// 3. 秘密鍵生成
-	console.error("Generating wallet...\n");
-	const privateKey = `0x${crypto.randomBytes(32).toString("hex")}` as `0x${string}`;
-	const account = privateKeyToAccount(privateKey);
-	const address = account.address;
-	const authToken = crypto.randomUUID();
-	const port = 18420;
-
-	// ~/.vaulx/ ディレクトリ作成
-	if (!fs.existsSync(VAULX_HOME)) {
-		fs.mkdirSync(VAULX_HOME, { recursive: true });
-	}
-
-	// 4. .env 書き出し（秘密鍵はここだけ）
-	const envPath = path.join(VAULX_HOME, ".env");
-	if (fs.existsSync(envPath) && !options.nonInteractive) {
-		const overwrite = await askWithDefault(".env already exists. Overwrite? (y/N)", "N");
+	// 3. Overwrite check
+	if (walletExists(walletName) && !options.nonInteractive) {
+		const overwrite = await askWithDefault(
+			`Wallet "${walletName}" already exists. Overwrite? (y/N)`,
+			"N",
+		);
 		if (overwrite.toLowerCase() !== "y") {
 			console.error("Aborted.");
 			close();
@@ -82,18 +83,61 @@ export async function init(options: InitOptions = {}): Promise<void> {
 		}
 	}
 
-	fs.writeFileSync(envPath, buildEnvFile(privateKey, chainId, chain, authToken, port), {
-		mode: 0o600,
-	});
+	// 4. Generate wallet
+	console.error("Generating wallet...\n");
+	const privateKey = `0x${crypto.randomBytes(32).toString("hex")}` as `0x${string}`;
+	const account = privateKeyToAccount(privateKey);
+	const address = account.address;
+	const authToken = crypto.randomUUID();
+	const port = 18420;
 
-	// 5. wallet-policy.json
-	const policyPath = path.join(VAULX_HOME, "wallet-policy.json");
+	// 5. Store private key (keychain or file)
+	const config = loadConfig();
+	let keyStorage = config.keyStorage;
+
+	if (keyStorage === "keychain") {
+		const stored = await saveToKeychain(walletName, privateKey);
+		if (!stored) {
+			if (isKeychainAvailable()) {
+				console.error("  ⚠️  Keychain save failed, falling back to file storage");
+			} else {
+				console.error("  ⚠️  Keychain unavailable, falling back to file storage");
+			}
+			keyStorage = "file";
+		} else {
+			console.error("  ✔ Stored private key in system keychain\n");
+		}
+	}
+
+	// 6. Create wallet directory
+	const wDir = createWalletDir(walletName);
+
+	// 7. Write .env
+	const envPath = path.join(wDir, ".env");
+	fs.writeFileSync(
+		envPath,
+		buildEnvFile({
+			privateKey: keyStorage === "file" ? privateKey : undefined,
+			address,
+			chainId,
+			chain,
+			authToken,
+			port,
+			walletName,
+			wDir,
+			keyStorage,
+		}),
+		{ mode: 0o600 },
+	);
+
+	// 7. Write wallet-policy.json
+	const policyPath = path.join(wDir, "wallet-policy.json");
 	const policyExists = fs.existsSync(policyPath);
 	if (!policyExists) {
 		fs.writeFileSync(policyPath, buildPolicyFile(maxPerTxWei, maxPerDayWei));
 	}
 
-	// 6. 結果表示
+	// 8. Display result
 	const isTestnet = chainId === 84532 || chainId === 11155111;
 
 	console.error("✔ Agent wallet created\n");
@@ -103,8 +147,22 @@ export async function init(options: InitOptions = {}): Promise<void> {
 	console.error(`  ${policyPath} ${policyExists ? "already exists" : "written"}`);
 	console.error("");
 
-	// 7. Claude Code 登録（秘密鍵は渡さない）
-	const regOpts = { chainId, authToken, port };
+	// 9. Set active + register
+	if (walletName !== config.active && !options.nonInteractive) {
+		const setActive = await askWithDefault(
+			`Set "${walletName}" as active wallet? (Y/n)`,
+			"Y",
+		);
+		if (setActive.toLowerCase() !== "n") {
+			config.active = walletName;
+			saveConfig(config);
+		}
+	} else if (options.nonInteractive || !walletExists(config.active)) {
+		config.active = walletName;
+		saveConfig(config);
+	}
+
+	const regOpts = { chainId, authToken, port, walletName: config.active };
 	const existing = isAlreadyRegistered();
 
 	if (!options.nonInteractive) {
@@ -127,14 +185,18 @@ export async function init(options: InitOptions = {}): Promise<void> {
 		console.error("  ✔ Registered MCP + hook");
 	}
 
-	// 8. 警告
+	// 10. Warnings
 	console.error("");
-	console.error(`  ⚠️  Private key stored in ~/.vaulx/.env (chmod 600)`);
+	if (keyStorage === "keychain") {
+		console.error("  ✔ Private key stored in OS keychain (not on disk)");
+	} else {
+		console.error(`  ⚠️  Private key stored in ${envPath} (chmod 600)`);
+	}
 	console.error("     ~/.mcp.json contains the .env path only — no secrets.");
-	console.error("     Do NOT share ~/.vaulx/.env.");
+	console.error(`     Do NOT share ${envPath}.`);
 	console.error("");
 
-	// 9. Next steps
+	// 11. Next steps
 	console.error("  Next steps:");
 	if (isTestnet) {
 		console.error("  1. Fund this address:");
@@ -162,25 +224,33 @@ function ethToWei(eth: string): string {
 	return (BigInt(whole) * 10n ** 18n + BigInt(padded)).toString();
 }
 
-function buildEnvFile(
-	privateKey: string,
-	chainId: number,
-	chain: { rpc: string },
-	authToken: string,
-	port: number,
-): string {
+interface EnvFileOptions {
+	privateKey?: string;
+	address: string;
+	chainId: number;
+	chain: { rpc: string };
+	authToken: string;
+	port: number;
+	walletName: string;
+	wDir: string;
+	keyStorage: "keychain" | "file";
+}
+
+function buildEnvFile(opts: EnvFileOptions): string {
+	const keyLine = opts.privateKey ? `PRIVATE_KEY=${opts.privateKey}\n` : "";
 	return `# vaulx agent wallet — generated by 'vaulx init'
 # ⚠️  Do NOT share this file or commit it to git
 
-PRIVATE_KEY=${privateKey}
+${keyLine}WALLET_ADDRESS=${opts.address}
+VAULX_WALLET_NAME=${opts.walletName}
 WALLET_MODE=env
-DEFAULT_CHAIN_ID=${chainId}
-RPC_URL=${chain.rpc}
-WALLET_POLICY=${path.join(VAULX_HOME, "wallet-policy.json")}
-WALLET_PORT=${port}
-WALLET_AUTH_TOKEN=${authToken}
+DEFAULT_CHAIN_ID=${opts.chainId}
+RPC_URL=${opts.chain.rpc}
+WALLET_POLICY=${path.join(opts.wDir, "wallet-policy.json")}
+WALLET_PORT=${opts.port}
+WALLET_AUTH_TOKEN=${opts.authToken}
 WALLET_STORE=sqlite
-WALLET_DB=${path.join(VAULX_HOME, "vaulx.db")}
+WALLET_DB=${path.join(opts.wDir, "vaulx.db")}
 `;
 }
 

@@ -1,10 +1,24 @@
 #!/usr/bin/env node
 
+import fs from "node:fs";
+import path from "node:path";
 import { CHAINS, DEFAULT_CHAIN_ID, PIMLICO_API_KEY, PRIVATE_KEY } from "../config.js";
 import { deploySmartAccount } from "./deploy.js";
 import { init } from "./init.js";
+import { deleteFromKeychain } from "./keychain.js";
 import { ask, askWithDefault, close, confirm } from "./prompts.js";
+import { registerHook, registerMCP } from "./register.js";
 import { createSessionKey } from "./session.js";
+import {
+	deleteWallet,
+	listWallets,
+	loadConfig,
+	migrateIfNeeded,
+	saveConfig,
+	validateWalletName,
+	walletDir,
+	walletExists,
+} from "./wallet-manager.js";
 
 async function setup() {
 	console.error("vaulx setup\n");
@@ -65,6 +79,97 @@ async function setup() {
 	close();
 }
 
+async function listCommand(): Promise<void> {
+	migrateIfNeeded();
+	const config = loadConfig();
+	const wallets = listWallets();
+
+	if (wallets.length === 0) {
+		console.error("No wallets. Run: vaulx init");
+		process.exit(0);
+	}
+
+	console.error("\n  Wallets:");
+	for (const w of wallets) {
+		const marker = w.name === config.active ? "●" : " ";
+		const addr = w.address
+			? `${w.address.slice(0, 6)}...${w.address.slice(-4)}`
+			: "???";
+		const chainName = w.chainId ? (CHAINS[w.chainId]?.name ?? String(w.chainId)) : "???";
+		console.error(`  ${marker} ${w.name.padEnd(15)} ${addr}   ${chainName}`);
+	}
+	console.error(`\n  ● = active\n`);
+}
+
+async function switchCommand(name: string | undefined): Promise<void> {
+	if (!name) {
+		console.error("Usage: vaulx switch <wallet-name>");
+		process.exit(1);
+	}
+	if (!walletExists(name)) {
+		console.error(`❌ Wallet "${name}" does not exist`);
+		console.error(`Run: vaulx init --name ${name}`);
+		process.exit(1);
+	}
+
+	const config = loadConfig();
+	config.active = name;
+	saveConfig(config);
+
+	// Read .env to re-register MCP + hook
+	const wDir = walletDir(name);
+	const envContent = fs.readFileSync(path.join(wDir, ".env"), "utf-8");
+	const chainId = Number(envContent.match(/DEFAULT_CHAIN_ID=(\d+)/)?.[1] ?? "84532");
+	const authToken = envContent.match(/WALLET_AUTH_TOKEN=(.+)/)?.[1]?.trim() ?? "";
+	const port = Number(envContent.match(/WALLET_PORT=(\d+)/)?.[1] ?? "18420");
+
+	registerMCP({ chainId, authToken, port, walletName: name });
+	registerHook({ chainId, authToken, port, walletName: name });
+
+	console.error(`✔ Switched to "${name}"`);
+	console.error("  Restart Claude Code to apply.");
+}
+
+async function deleteCommand(name: string | undefined): Promise<void> {
+	if (!name) {
+		console.error("Usage: vaulx delete <wallet-name>");
+		process.exit(1);
+	}
+	if (name === "default") {
+		console.error("❌ Cannot delete the default wallet");
+		process.exit(1);
+	}
+	if (!walletExists(name)) {
+		console.error(`❌ Wallet "${name}" does not exist`);
+		process.exit(1);
+	}
+
+	const answer = await askWithDefault(
+		`Delete wallet "${name}"? This cannot be undone. (y/N)`,
+		"N",
+	);
+	if (answer.toLowerCase() !== "y") {
+		console.error("Aborted.");
+		close();
+		process.exit(0);
+	}
+
+	// Clean up keychain entry if present
+	const config = loadConfig();
+	if (config.keyStorage === "keychain") {
+		await deleteFromKeychain(name);
+	}
+
+	deleteWallet(name);
+	console.error(`✔ Wallet "${name}" deleted`);
+
+	// deleteWallet resets active to "default" if this was active
+	if (config.active === name) {
+		console.error('  Switched to "default"');
+	}
+	close();
+}
+
 function getFlag(name: string): string | undefined {
 	const idx = process.argv.indexOf(name);
 	return idx !== -1 && idx + 1 < process.argv.length ? process.argv[idx + 1] : undefined;
@@ -79,6 +184,7 @@ const command = process.argv[2];
 switch (command) {
 	case "init":
 		await init({
+			name: getFlag("--name"),
 			chain: getFlag("--chain"),
 			nonInteractive: hasFlag("--non-interactive"),
 			maxPerTx: getFlag("--max-per-tx"),
@@ -88,10 +194,29 @@ switch (command) {
 	case "setup":
 		await setup();
 		break;
+	case "list":
+		await listCommand();
+		break;
+	case "switch":
+		await switchCommand(process.argv[3]);
+		break;
+	case "delete":
+		await deleteCommand(process.argv[3]);
+		break;
+	case "active": {
+		migrateIfNeeded();
+		const config = loadConfig();
+		console.error(`Active wallet: ${config.active}`);
+		break;
+	}
 	default:
 		console.error("Usage: vaulx <command>\n");
 		console.error("Commands:");
-		console.error("  init    Generate a new agent wallet + register in Claude Code");
-		console.error("  setup   Deploy smart account + session key (advanced)");
+		console.error("  init [--name <n>]  Create a new wallet");
+		console.error("  list               List all wallets");
+		console.error("  switch <name>      Switch active wallet");
+		console.error("  delete <name>      Delete a wallet");
+		console.error("  active             Show active wallet");
+		console.error("  setup              Deploy smart account (advanced)");
 		process.exit(1);
 }

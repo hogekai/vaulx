@@ -9,12 +9,26 @@ npx @vaulx/vaulx init
 ```
 
 This will:
-1. Generate a new wallet (private key stored in `~/.vaulx/.env`, chmod 600)
-2. Create a spending policy (`~/.vaulx/wallet-policy.json`)
+1. Generate a new wallet (private key stored in OS keychain or `~/.vaulx/wallets/default/.env`)
+2. Create a spending policy (`~/.vaulx/wallets/default/wallet-policy.json`)
 3. Register the MCP server in `~/.mcp.json` (no secrets — only the `.env` path)
 4. Register the auto-payment hook in `~/.claude/settings.json`
 
 Then restart Claude Code — vaulx will auto-connect.
+
+## Multi-Wallet
+
+Create and manage multiple isolated wallets:
+
+```bash
+npx @vaulx/vaulx init --name defi       # Create named wallet
+npx @vaulx/vaulx list                   # List all wallets
+npx @vaulx/vaulx switch defi            # Switch active wallet
+npx @vaulx/vaulx active                 # Show active wallet
+npx @vaulx/vaulx delete defi            # Delete wallet
+```
+
+Each wallet has its own `.env`, spending policy, and transaction database under `~/.vaulx/wallets/{name}/`. Switching re-registers the MCP server and hook — restart Claude Code to apply.
 
 ## Fund Your Wallet
 
@@ -69,7 +83,7 @@ Auth: `Authorization: Bearer {WALLET_AUTH_TOKEN}`.
 
 ## Spending Policy
 
-Set via `vaulx init` prompts, or edit `~/.vaulx/wallet-policy.json` directly.
+Set via `vaulx init` prompts, or edit `~/.vaulx/wallets/{name}/wallet-policy.json` directly.
 
 | Field | Description |
 |-------|-------------|
@@ -109,7 +123,8 @@ Deploys an ERC-4337 smart account with Pimlico paymaster (gas-sponsored). Requir
 
 ## Security
 
-- Private key is stored only in `~/.vaulx/.env` (chmod 600)
+- Private key is stored in OS keychain (macOS Keychain / Linux libsecret) by default
+- Falls back to `~/.vaulx/wallets/{name}/.env` (chmod 600) when keychain is unavailable
 - `~/.mcp.json` contains the file path, not the key itself
 - HTTP server binds to `127.0.0.1` only
 - Spending policy enforces per-tx, daily, and total limits
