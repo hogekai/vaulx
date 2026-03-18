@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.1] - 2026-03-18
+
+### Changed
+- `/release` command now automates tag push and GitHub Release creation
+
 ## [0.5.0] - 2026-03-18
 
 ### Added
