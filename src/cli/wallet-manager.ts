@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export const VAULX_HOME = path.join(os.homedir(), ".vaulx");
+export const VAULX_HOME = process.env.VAULX_HOME_OVERRIDE ?? path.join(os.homedir(), ".vaulx");
 const CONFIG_PATH = path.join(VAULX_HOME, "config.json");
 const WALLETS_DIR = path.join(VAULX_HOME, "wallets");
 

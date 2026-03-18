@@ -4,7 +4,7 @@ import { getPublicClient, getViemChain } from "../client.js";
 import { getRpcUrl, PRIVATE_KEY } from "../config.js";
 import type { Signer, TxParams } from "./types.js";
 
-class NonceManager {
+export class NonceManager {
 	private pending: bigint | null = null;
 
 	async next(_address: `0x${string}`, getCount: () => Promise<number>): Promise<number> {

@@ -1,11 +1,13 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { walletDir } from "./wallet-manager.js";
+import { VAULX_HOME, walletDir } from "./wallet-manager.js";
 
 /** Package root (src/cli/register.ts → ../../) */
 const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+/** Home directory — derived from VAULX_HOME (respects VAULX_HOME_OVERRIDE) */
+const HOME = path.resolve(VAULX_HOME, "..");
 
 export interface RegisterOptions {
 	chainId: number;
@@ -19,7 +21,7 @@ export interface RegisterOptions {
  * No secrets — only .env file path and auth token.
  */
 export function registerMCP(options: RegisterOptions): void {
-	const mcpJsonPath = path.join(os.homedir(), ".mcp.json");
+	const mcpJsonPath = path.join(HOME, ".mcp.json");
 
 	let config: Record<string, unknown> = {};
 	if (fs.existsSync(mcpJsonPath)) {
@@ -53,7 +55,7 @@ export function registerMCP(options: RegisterOptions): void {
  * Register Elicitation hook in ~/.claude/settings.json.
  */
 export function registerHook(options: RegisterOptions): void {
-	const settingsDir = path.join(os.homedir(), ".claude");
+	const settingsDir = path.join(HOME, ".claude");
 	const settingsPath = path.join(settingsDir, "settings.json");
 
 	if (!fs.existsSync(settingsDir)) {
@@ -104,8 +106,8 @@ export function registerHook(options: RegisterOptions): void {
  * Check if already registered.
  */
 export function isAlreadyRegistered(): { mcp: boolean; hook: boolean } {
-	const mcpJsonPath = path.join(os.homedir(), ".mcp.json");
-	const settingsPath = path.join(os.homedir(), ".claude", "settings.json");
+	const mcpJsonPath = path.join(HOME, ".mcp.json");
+	const settingsPath = path.join(HOME, ".claude", "settings.json");
 
 	let mcp = false;
 	if (fs.existsSync(mcpJsonPath)) {
