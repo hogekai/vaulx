@@ -63,8 +63,16 @@ Commit with message: `release: vX.Y.Z`
 
 Create an annotated tag: `git tag -a vX.Y.Z -m "vX.Y.Z"`
 
-## 7. Done
+## 7. Push and publish
 
-Report what was done. Remind the user to:
-- `git push && git push --tags`
-- Create a GitHub Release from the tag (which triggers the publish workflow)
+Run:
+```
+git push && git push --tags
+```
+
+Then create a GitHub Release (this triggers the npm publish workflow):
+```
+gh release create vX.Y.Z --title "vX.Y.Z" --notes "See CHANGELOG.md for details"
+```
+
+Report what was done and link to the created release.
