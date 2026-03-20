@@ -45,8 +45,8 @@ async function setup() {
 	const chainNames = Object.entries(CHAINS)
 		.map(([id, c]) => `${c.name} (${id})`)
 		.join(", ");
-	const chainInput = await askWithDefault(`\nChain? ${chainNames}`, String(DEFAULT_CHAIN_ID));
-	const chainId = Number(chainInput);
+	const chainInput = await askWithDefault(`\nChain? ${chainNames}`, DEFAULT_CHAIN_ID);
+	const chainId = chainInput;
 	if (!CHAINS[chainId]) {
 		console.error(`Unsupported chain: ${chainId}`);
 		process.exit(1);
@@ -130,7 +130,7 @@ async function switchCommand(name: string | undefined): Promise<void> {
 	// Read .env to re-register MCP + hook
 	const wDir = walletDir(name);
 	const envContent = fs.readFileSync(path.join(wDir, ".env"), "utf-8");
-	const chainId = Number(envContent.match(/DEFAULT_CHAIN_ID=(\d+)/)?.[1] ?? "84532");
+	const chainId = envContent.match(/DEFAULT_CHAIN_ID=(.+)/)?.[1]?.trim() ?? "84532";
 	const authToken = envContent.match(/WALLET_AUTH_TOKEN=(.+)/)?.[1]?.trim() ?? "";
 	const port = Number(envContent.match(/WALLET_PORT=(\d+)/)?.[1] ?? "18420");
 

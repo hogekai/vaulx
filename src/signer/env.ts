@@ -31,7 +31,7 @@ export function createEnvSigner(): Signer {
 	const account = privateKeyToAccount(privateKey);
 	const nonces = new NonceManager();
 
-	function getWalletClient(chainId: number) {
+	function getWalletClient(chainId: string) {
 		return createWalletClient({
 			account,
 			chain: getViemChain(chainId),
@@ -40,14 +40,14 @@ export function createEnvSigner(): Signer {
 	}
 
 	return {
-		mode: "env" as const,
+		mode: "env",
 		hasPaymaster: false,
 
-		async getAddress(): Promise<`0x${string}`> {
+		async getAddress() {
 			return account.address;
 		},
 
-		async sendTransaction(params: TxParams): Promise<`0x${string}`> {
+		async sendTransaction(params: TxParams) {
 			const pub = getPublicClient(params.chainId);
 			const wallet = getWalletClient(params.chainId);
 
@@ -59,9 +59,9 @@ export function createEnvSigner(): Signer {
 			);
 			try {
 				const hash = await wallet.sendTransaction({
-					to: params.to,
+					to: params.to as `0x${string}`,
 					value: params.value,
-					data: params.data,
+					data: params.data as `0x${string}` | undefined,
 					nonce,
 					chain: getViemChain(params.chainId),
 				});
@@ -72,11 +72,11 @@ export function createEnvSigner(): Signer {
 			}
 		},
 
-		async signMessage(message: string): Promise<`0x${string}`> {
+		async signMessage(message: string) {
 			return account.signMessage({ message });
 		},
 
-		async getBalance(chainId: number): Promise<bigint> {
+		async getBalance(chainId: string) {
 			const client = getPublicClient(chainId);
 			return client.getBalance({ address: account.address });
 		},

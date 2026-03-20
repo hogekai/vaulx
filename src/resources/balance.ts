@@ -1,22 +1,23 @@
 import type { MCPServer } from "@lynq/lynq";
-import { formatEther } from "viem";
+import { formatEther, formatUnits } from "viem";
 import type { ChainManager } from "../chain/manager.js";
-import { getChain } from "../config.js";
+import { getChain, isSolanaChain } from "../config.js";
 
 export function registerBalanceResource(server: MCPServer, chainManager: ChainManager) {
 	const handler = async (uri: string) => {
 		const parts = uri.split("/");
 		const chainIdStr = parts[parts.length - 1];
 		const chainId =
-			chainIdStr && chainIdStr !== "balance" ? Number(chainIdStr) : chainManager.defaultChainId;
+			chainIdStr && chainIdStr !== "balance" ? chainIdStr : chainManager.defaultChainId;
 		const chain = getChain(chainId);
 		const signer = await chainManager.getSigner(chainId);
 		const balance = await signer.getBalance(chainId);
+		const formatted = isSolanaChain(chainId) ? formatUnits(balance, 9) : formatEther(balance);
 		return {
 			text: JSON.stringify({
 				chainId,
 				network: chain.name,
-				balance: formatEther(balance),
+				balance: formatted,
 				symbol: chain.nativeCurrency.symbol,
 			}),
 		};

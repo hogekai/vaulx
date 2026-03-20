@@ -2,7 +2,7 @@ import type { MCPServer } from "@lynq/lynq";
 import { encodeFunctionData, erc20Abi } from "viem";
 import { z } from "zod";
 import type { ChainManager } from "../chain/manager.js";
-import { DEFAULT_CHAIN_ID, resolveChainId } from "../config.js";
+import { DEFAULT_CHAIN_ID, isSolanaChain, resolveChainId } from "../config.js";
 import { VaulxError } from "../errors.js";
 import type { PolicyGuard } from "../guard/policy-guard.js";
 import { executeTx } from "../helpers/execute-tx.js";
@@ -31,8 +31,11 @@ export function registerRevokeToken(server: MCPServer, ctx: RevokeTokenCtx) {
 		},
 		async (args, c) => {
 			try {
-				const spender = validateAddress(args.spender);
 				const chainId = resolveChainId(args.chainId ?? args.network ?? DEFAULT_CHAIN_ID);
+				if (isSolanaChain(chainId)) {
+					throw new VaulxError("Token revocation is not supported on Solana", "UNSUPPORTED_OPERATION");
+				}
+				const spender = validateAddress(args.spender, chainId);
 				const signer = await ctx.chainManager.getSigner(chainId);
 
 				const token = ctx.tokenRegistry.resolve(chainId, args.token);
@@ -46,7 +49,7 @@ export function registerRevokeToken(server: MCPServer, ctx: RevokeTokenCtx) {
 				const data = encodeFunctionData({
 					abi: erc20Abi,
 					functionName: "approve",
-					args: [spender, 0n],
+					args: [spender as `0x${string}`, 0n],
 				});
 
 				const result = await executeTx(

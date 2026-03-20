@@ -1,4 +1,4 @@
-export function depositPage(address: string, chainId: number): string {
+export function depositPage(address: string, chainId: string): string {
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>

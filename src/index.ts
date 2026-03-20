@@ -113,7 +113,7 @@ if (defaultSigner.mode === "session-key") {
 	console.error("   SpendingPolicy is software-only. Do NOT use with real funds.");
 }
 
-const TESTNET_CHAINS = new Set([84532, 11155111]);
+const TESTNET_CHAINS = new Set(["84532", "11155111", "solana-devnet"]);
 if (!TESTNET_CHAINS.has(chainManager.defaultChainId)) {
 	console.error("\u26a0\ufe0f  Mainnet detected. vaulx has NOT been security audited.");
 }

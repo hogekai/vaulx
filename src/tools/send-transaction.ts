@@ -1,8 +1,9 @@
 import type { MCPServer } from "@lynq/lynq";
-import { formatEther, parseEther } from "viem";
+import { formatEther, formatUnits, parseEther } from "viem";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { z } from "zod";
 import type { ChainManager } from "../chain/manager.js";
-import { DEFAULT_CHAIN_ID, resolveChainId } from "../config.js";
+import { getChain, isSolanaChain, resolveChainId } from "../config.js";
 import { VaulxError } from "../errors.js";
 import type { PolicyGuard } from "../guard/policy-guard.js";
 import { executeTx } from "../helpers/execute-tx.js";
@@ -19,15 +20,15 @@ export function registerSendTransaction(server: MCPServer, ctx: SendTransactionC
 	server.tool(
 		"send_transaction",
 		{
-			description: "Send native token (ETH) on an EVM chain. Returns tx hash and explorer link.",
+			description: "Send native token (ETH/SOL) on a supported chain. Returns tx hash and explorer link.",
 			input: z.object({
-				to: z.string().optional().describe("Recipient address (0x...)"),
+				to: z.string().optional().describe("Recipient address"),
 				recipient: z.string().optional().describe("Alias for 'to' (agentPayment compat)"),
-				value: z.string().optional().describe("Amount in ETH (e.g. '0.01')"),
+				value: z.string().optional().describe("Amount in native token units (e.g. '0.01')"),
 				amount: z.string().optional().describe("Alias for 'value' (agentPayment compat)"),
 				chainId: z.union([z.string(), z.number()]).optional().describe("Chain ID or network alias"),
-				network: z.string().optional().describe("Network alias (e.g. 'base-sepolia')"),
-				token: z.string().default("ETH").describe("Token symbol"),
+				network: z.string().optional().describe("Network alias (e.g. 'base-sepolia', 'solana-devnet')"),
+				token: z.string().optional().describe("Token symbol (defaults to chain native)"),
 			}),
 		},
 		async (args, c) => {
@@ -36,18 +37,31 @@ export function registerSendTransaction(server: MCPServer, ctx: SendTransactionC
 				if (!rawTo) return c.error("[VALIDATION] to or recipient required");
 				const rawValue = args.value || args.amount;
 				if (!rawValue) return c.error("[VALIDATION] value or amount required");
-				const to = validateAddress(rawTo);
-				const ethValue = validateAmount(rawValue, "value");
-				const chainId = resolveChainId(args.chainId ?? args.network ?? DEFAULT_CHAIN_ID);
-				const value = parseEther(ethValue);
+				const chainId = resolveChainId(args.chainId ?? args.network);
+				const chain = getChain(chainId);
+				const to = validateAddress(rawTo, chainId);
+				const amountStr = validateAmount(rawValue, "value");
+				const nativeSymbol = chain.nativeCurrency.symbol;
+				const token = args.token?.toUpperCase() ?? nativeSymbol;
+
+				let value: bigint;
+				if (isSolanaChain(chainId)) {
+					value = BigInt(Math.round(parseFloat(amountStr) * LAMPORTS_PER_SOL));
+				} else {
+					value = parseEther(amountStr);
+				}
+
 				const signer = await ctx.chainManager.getSigner(chainId);
 
-				// Gas check (tool-specific: native token, check full balance)
+				// Balance check
 				if (!signer.hasPaymaster) {
 					const balance = await signer.getBalance(chainId);
 					if (balance < value) {
+						const formatted = isSolanaChain(chainId)
+							? formatUnits(balance, 9)
+							: formatEther(balance);
 						return c.error(
-							`[INSUFFICIENT_BALANCE] Have: ${formatEther(balance)} ETH, Need: ${ethValue} ETH`,
+							`[INSUFFICIENT_BALANCE] Have: ${formatted} ${nativeSymbol}, Need: ${amountStr} ${nativeSymbol}`,
 						);
 					}
 				}
@@ -56,7 +70,7 @@ export function registerSendTransaction(server: MCPServer, ctx: SendTransactionC
 					{
 						operation: "send",
 						txParams: { to, value, chainId },
-						token: args.token.toUpperCase(),
+						token,
 					},
 					{
 						signer,

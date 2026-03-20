@@ -60,12 +60,12 @@ export function registerSwapToken(server: MCPServer, ctx: SwapTokenCtx) {
 				const isEthIn = args.tokenIn.toUpperCase() === "ETH";
 				const isEthOut = args.tokenOut.toUpperCase() === "ETH";
 
-				const tokenInAddress = isEthIn
+				const tokenInAddress = (isEthIn
 					? wethAddress
-					: ctx.tokenRegistry.resolve(chainId, args.tokenIn)?.address;
-				const tokenOutAddress = isEthOut
+					: ctx.tokenRegistry.resolve(chainId, args.tokenIn)?.address) as `0x${string}` | undefined;
+				const tokenOutAddress = (isEthOut
 					? wethAddress
-					: ctx.tokenRegistry.resolve(chainId, args.tokenOut)?.address;
+					: ctx.tokenRegistry.resolve(chainId, args.tokenOut)?.address) as `0x${string}` | undefined;
 
 				if (!tokenInAddress) {
 					throw new VaulxError(
@@ -94,10 +94,10 @@ export function registerSwapToken(server: MCPServer, ctx: SwapTokenCtx) {
 				// If ERC20 input, check allowance and auto-approve
 				if (!isEthIn) {
 					const allowance = (await pub.readContract({
-						address: tokenInAddress,
+						address: tokenInAddress!,
 						abi: erc20Abi,
 						functionName: "allowance",
-						args: [address, routerAddress],
+						args: [address as `0x${string}`, routerAddress],
 					})) as bigint;
 
 					if (allowance < amountIn) {
@@ -149,10 +149,10 @@ export function registerSwapToken(server: MCPServer, ctx: SwapTokenCtx) {
 
 				// Build swap calldata
 				const swapData = encodeExactInputSingle({
-					tokenIn: tokenInAddress,
-					tokenOut: tokenOutAddress,
+					tokenIn: tokenInAddress!,
+					tokenOut: tokenOutAddress!,
 					fee: 3000,
-					recipient: address,
+					recipient: address as `0x${string}`,
 					amountIn,
 					amountOutMinimum,
 				});

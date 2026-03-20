@@ -2,7 +2,7 @@ import type { MCPServer } from "@lynq/lynq";
 import { encodeFunctionData, erc20Abi, parseUnits } from "viem";
 import { z } from "zod";
 import type { ChainManager } from "../chain/manager.js";
-import { DEFAULT_CHAIN_ID, resolveChainId } from "../config.js";
+import { DEFAULT_CHAIN_ID, isSolanaChain, resolveChainId } from "../config.js";
 import { VaulxError } from "../errors.js";
 import type { PolicyGuard } from "../guard/policy-guard.js";
 import { executeTx } from "../helpers/execute-tx.js";
@@ -35,8 +35,11 @@ export function registerApproveToken(server: MCPServer, ctx: ApproveTokenCtx) {
 		},
 		async (args, c) => {
 			try {
-				const spender = validateAddress(args.spender);
 				const chainId = resolveChainId(args.chainId ?? args.network ?? DEFAULT_CHAIN_ID);
+				if (isSolanaChain(chainId)) {
+					throw new VaulxError("Token approval is not supported on Solana", "UNSUPPORTED_OPERATION");
+				}
+				const spender = validateAddress(args.spender, chainId);
 				const signer = await ctx.chainManager.getSigner(chainId);
 
 				const token = ctx.tokenRegistry.resolve(chainId, args.token);
@@ -61,7 +64,7 @@ export function registerApproveToken(server: MCPServer, ctx: ApproveTokenCtx) {
 				const data = encodeFunctionData({
 					abi: erc20Abi,
 					functionName: "approve",
-					args: [spender, rawAmount],
+					args: [spender as `0x${string}`, rawAmount],
 				});
 
 				const result = await executeTx(

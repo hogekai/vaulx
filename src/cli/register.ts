@@ -10,7 +10,7 @@ const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const HOME = path.resolve(VAULX_HOME, "..");
 
 export interface RegisterOptions {
-	chainId: number;
+	chainId: string;
 	authToken: string;
 	port: number;
 	walletName?: string;

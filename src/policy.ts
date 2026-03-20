@@ -2,6 +2,13 @@ import { readFileSync } from "node:fs";
 import { z } from "zod";
 import { WALLET_POLICY } from "./config.js";
 
+const ChainOverrideSchema = z.object({
+	maxPerTx: z.string().optional(),
+	maxPerDay: z.string().optional(),
+	maxTotal: z.string().optional(),
+	allowedTokens: z.array(z.string()).optional(),
+});
+
 const SpendingPolicySchema = z.object({
 	maxPerTx: z.string(),
 	maxPerDay: z.string().optional(),
@@ -12,9 +19,10 @@ const SpendingPolicySchema = z.object({
 	allowedOperations: z.array(z.string()).default(["send", "sign"]),
 	maxApproveAmount: z.string().optional(),
 	expiresAt: z.string().optional(),
-	allowedChains: z.array(z.number()).optional(),
+	allowedChains: z.array(z.string()).optional(),
 	maxSlippage: z.number().optional(),
 	allowedSwapTokens: z.array(z.string()).optional(),
+	chainOverrides: z.record(z.string(), ChainOverrideSchema).optional(),
 });
 
 export type SpendingPolicy = z.infer<typeof SpendingPolicySchema>;

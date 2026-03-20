@@ -1,11 +1,20 @@
+import { isSolanaChain } from "../config.js";
 import { VaulxError } from "../errors.js";
 
-/** Validate 0x-prefixed 40 hex char address. Checksum validation is left to viem. */
-export function validateAddress(input: string): `0x${string}` {
+/** Validate address for the given chain. EVM: 0x + 40 hex. Solana: Base58. */
+export function validateAddress(input: string, chainId?: string): string {
+	if (chainId && isSolanaChain(chainId)) {
+		// Base58 check: 32-44 characters, valid Base58 alphabet (no 0, O, I, l)
+		if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(input)) {
+			throw new VaulxError(`Invalid Solana address: ${input}`, "CONFIG_ERROR", { address: input });
+		}
+		return input;
+	}
+	// EVM: 0x-prefixed 40 hex char address
 	if (!/^0x[0-9a-fA-F]{40}$/.test(input)) {
 		throw new VaulxError(`Invalid address: ${input}`, "CONFIG_ERROR", { address: input });
 	}
-	return input as `0x${string}`;
+	return input;
 }
 
 /** Validate numeric string is non-empty, non-negative, non-zero. */

@@ -21,7 +21,8 @@ export function registerGetSpending(server: MCPServer, ctx: GetSpendingCtx) {
 			const today = new Date().toISOString().slice(0, 10);
 			const dailyKey = `daily:${ctx.chainManager.defaultChainId}:${today}`;
 			const dailySpent = BigInt((await ctx.store.get<string>(dailyKey)) ?? "0");
-			const totalSpent = BigInt((await ctx.store.get<string>("total-spent")) ?? "0");
+			const totalKey = `total-spent:${ctx.chainManager.defaultChainId}`;
+			const totalSpent = BigInt((await ctx.store.get<string>(totalKey)) ?? "0");
 
 			return c.json({
 				daily: {

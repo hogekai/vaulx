@@ -15,7 +15,7 @@ export interface WalletInfo {
 	name: string;
 	dir: string;
 	address?: string;
-	chainId?: number;
+	chainId?: string;
 }
 
 const NAME_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
@@ -68,14 +68,14 @@ export function listWallets(): WalletInfo[] {
 			const dir = path.join(WALLETS_DIR, d.name);
 			const envPath = path.join(dir, ".env");
 			let address: string | undefined;
-			let chainId: number | undefined;
+			let chainId: string | undefined;
 
 			if (fs.existsSync(envPath)) {
 				const content = fs.readFileSync(envPath, "utf-8");
 				const addrMatch = content.match(/^WALLET_ADDRESS=(.+)$/m);
 				if (addrMatch) address = addrMatch[1].trim();
-				const chainMatch = content.match(/^DEFAULT_CHAIN_ID=(\d+)$/m);
-				if (chainMatch) chainId = Number(chainMatch[1]);
+				const chainMatch = content.match(/^DEFAULT_CHAIN_ID=(.+)$/m);
+				if (chainMatch) chainId = chainMatch[1].trim();
 			}
 
 			return { name: d.name, dir, address, chainId };

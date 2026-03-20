@@ -1,14 +1,15 @@
 import { readFileSync } from "node:fs";
+import { isSolanaChain } from "../config.js";
 
 export interface TokenEntry {
-	address: `0x${string}`;
+	address: string;
 	decimals: number;
 	symbol: string;
 	name: string;
 }
 
-const BUILTIN_TOKENS: Record<number, Record<string, TokenEntry>> = {
-	1: {
+const BUILTIN_TOKENS: Record<string, Record<string, TokenEntry>> = {
+	"1": {
 		USDC: {
 			address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
 			decimals: 6,
@@ -34,7 +35,7 @@ const BUILTIN_TOKENS: Record<number, Record<string, TokenEntry>> = {
 			name: "Wrapped Ether",
 		},
 	},
-	8453: {
+	"8453": {
 		USDC: {
 			address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
 			decimals: 6,
@@ -60,7 +61,7 @@ const BUILTIN_TOKENS: Record<number, Record<string, TokenEntry>> = {
 			name: "Wrapped Ether",
 		},
 	},
-	84532: {
+	"84532": {
 		USDC: {
 			address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
 			decimals: 6,
@@ -68,7 +69,7 @@ const BUILTIN_TOKENS: Record<number, Record<string, TokenEntry>> = {
 			name: "USD Coin",
 		},
 	},
-	11155111: {
+	"11155111": {
 		USDC: {
 			address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
 			decimals: 6,
@@ -76,10 +77,32 @@ const BUILTIN_TOKENS: Record<number, Record<string, TokenEntry>> = {
 			name: "USD Coin",
 		},
 	},
+	"solana-devnet": {
+		USDC: {
+			address: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+			decimals: 6,
+			symbol: "USDC",
+			name: "USD Coin",
+		},
+	},
+	"solana": {
+		USDC: {
+			address: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+			decimals: 6,
+			symbol: "USDC",
+			name: "USD Coin",
+		},
+		USDT: {
+			address: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+			decimals: 6,
+			symbol: "USDT",
+			name: "Tether USD",
+		},
+	},
 };
 
 export class TokenRegistry {
-	private tokens: Record<number, Record<string, TokenEntry>>;
+	private tokens: Record<string, Record<string, TokenEntry>>;
 
 	constructor(customTokensPath?: string) {
 		this.tokens = structuredClone(BUILTIN_TOKENS);
@@ -95,27 +118,31 @@ export class TokenRegistry {
 		}
 	}
 
-	resolve(chainId: number, symbol: string): TokenEntry | null {
+	resolve(chainId: string, symbol: string): TokenEntry | null {
 		return this.tokens[chainId]?.[symbol.toUpperCase()] ?? null;
 	}
 
-	resolveByAddress(chainId: number, address: `0x${string}`): TokenEntry | null {
+	resolveByAddress(chainId: string, address: string): TokenEntry | null {
 		const entries = this.tokens[chainId];
 		if (!entries) return null;
+		if (isSolanaChain(chainId)) {
+			// Solana addresses are case-sensitive (Base58)
+			return Object.values(entries).find((t) => t.address === address) ?? null;
+		}
+		// EVM addresses are case-insensitive
 		const lower = address.toLowerCase();
 		return Object.values(entries).find((t) => t.address.toLowerCase() === lower) ?? null;
 	}
 
-	list(chainId: number): TokenEntry[] {
+	list(chainId: string): TokenEntry[] {
 		return Object.values(this.tokens[chainId] ?? {});
 	}
 
 	private merge(custom: Record<string, Record<string, Omit<TokenEntry, "symbol">>>) {
 		for (const [chainIdStr, tokens] of Object.entries(custom)) {
-			const chainId = Number(chainIdStr);
-			if (!this.tokens[chainId]) this.tokens[chainId] = {};
+			if (!this.tokens[chainIdStr]) this.tokens[chainIdStr] = {};
 			for (const [symbol, entry] of Object.entries(tokens)) {
-				this.tokens[chainId][symbol.toUpperCase()] = {
+				this.tokens[chainIdStr][symbol.toUpperCase()] = {
 					...entry,
 					symbol: symbol.toUpperCase(),
 				} as TokenEntry;

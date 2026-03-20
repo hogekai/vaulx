@@ -22,8 +22,8 @@ export interface ExecuteTxDeps {
 }
 
 export interface ExecuteTxResult {
-	hash: `0x${string}`;
-	chainId: number;
+	hash: string;
+	chainId: string;
 	explorer?: string;
 	proof: { type: "tx_hash"; value: string };
 }
@@ -63,7 +63,7 @@ export async function executeTx(
 	}
 
 	// 3. Send
-	let hash: `0x${string}`;
+	let hash: string;
 	try {
 		hash = await signer.sendTransaction(txParams);
 	} catch (e) {
@@ -74,7 +74,7 @@ export async function executeTx(
 		});
 	}
 
-	// 3. Log
+	// 4. Log
 	await txLog.record({
 		hash,
 		chainId: txParams.chainId,

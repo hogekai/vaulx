@@ -5,94 +5,125 @@ export interface ChainConfig {
 	blockExplorer?: string;
 }
 
-export const CHAINS: Record<number, ChainConfig> = {
-	1: {
+export const CHAINS: Record<string, ChainConfig> = {
+	"1": {
 		name: "ethereum",
 		rpc: "https://eth.llamarpc.com",
 		nativeCurrency: { symbol: "ETH", decimals: 18 },
 		blockExplorer: "https://etherscan.io",
 	},
-	8453: {
+	"8453": {
 		name: "base",
 		rpc: "https://mainnet.base.org",
 		nativeCurrency: { symbol: "ETH", decimals: 18 },
 		blockExplorer: "https://basescan.org",
 	},
-	84532: {
+	"84532": {
 		name: "base-sepolia",
 		rpc: "https://sepolia.base.org",
 		nativeCurrency: { symbol: "ETH", decimals: 18 },
 		blockExplorer: "https://sepolia.basescan.org",
 	},
-	11155111: {
+	"11155111": {
 		name: "sepolia",
 		rpc: "https://rpc.sepolia.org",
 		nativeCurrency: { symbol: "ETH", decimals: 18 },
 		blockExplorer: "https://sepolia.etherscan.io",
 	},
+	"solana": {
+		name: "solana",
+		rpc: "https://api.mainnet-beta.solana.com",
+		nativeCurrency: { symbol: "SOL", decimals: 9 },
+		blockExplorer: "https://explorer.solana.com",
+	},
+	"solana-devnet": {
+		name: "solana-devnet",
+		rpc: "https://api.devnet.solana.com",
+		nativeCurrency: { symbol: "SOL", decimals: 9 },
+		blockExplorer: "https://explorer.solana.com/?cluster=devnet",
+	},
 };
 
-export const NETWORK_ALIASES: Record<string, number> = {
-	ethereum: 1,
-	base: 8453,
-	"base-sepolia": 84532,
-	sepolia: 11155111,
+export const NETWORK_ALIASES: Record<string, string> = {
+	ethereum: "1",
+	base: "8453",
+	"base-sepolia": "84532",
+	sepolia: "11155111",
+	solana: "solana",
+	"solana-devnet": "solana-devnet",
 };
 
-export function resolveChainId(input: string | number | undefined): number {
-	if (input === undefined) return DEFAULT_CHAIN_ID;
-	if (typeof input === "number") return input;
-	const alias = NETWORK_ALIASES[input];
+export function resolveChainId(input: string | number | undefined): string {
+	if (input === undefined) return getDefaultChainId();
+	const s = String(input);
+	const alias = NETWORK_ALIASES[s];
 	if (alias !== undefined) return alias;
-	const parsed = Number(input);
-	if (!Number.isNaN(parsed)) return parsed;
+	// If it's already a known chain key, return as-is
+	if (CHAINS[s]) return s;
 	throw new Error(`Unknown chain: ${input}`);
 }
 
-export function getChain(chainId: number): ChainConfig {
+export function getChain(chainId: string): ChainConfig {
 	const chain = CHAINS[chainId];
 	if (!chain) throw new Error(`Unsupported chain: ${chainId}`);
 	return chain;
 }
 
-export function getRpcUrl(chainId: number): string {
+export function getRpcUrl(chainId: string): string {
 	const perChain = process.env[`RPC_URL_${chainId}`];
 	if (perChain) return perChain;
-	const envRpc = process.env.RPC_URL;
-	if (envRpc && chainId === DEFAULT_CHAIN_ID) return envRpc;
+	if (isSolanaChain(chainId)) {
+		const solRpc = process.env.SOLANA_RPC_URL;
+		if (solRpc && chainId === getDefaultChainId()) return solRpc;
+	} else {
+		const envRpc = process.env.RPC_URL;
+		if (envRpc && chainId === getDefaultChainId()) return envRpc;
+	}
 	return getChain(chainId).rpc;
 }
 
+/** Convert string chainId to numeric (for EVM libraries like viem). Throws for non-numeric chains. */
+export function numericChainId(chainId: string): number {
+	const n = Number.parseInt(chainId, 10);
+	if (Number.isNaN(n)) throw new Error(`Chain ${chainId} has no numeric ID (not an EVM chain)`);
+	return n;
+}
+
+export function isSolanaChain(chainId: string): boolean {
+	return chainId.startsWith("solana");
+}
+
 // Pimlico chain name mapping
-const PIMLICO_CHAINS: Record<number, string> = {
-	1: "ethereum",
-	8453: "base",
-	84532: "base-sepolia",
-	11155111: "sepolia",
+const PIMLICO_CHAINS: Record<string, string> = {
+	"1": "ethereum",
+	"8453": "base",
+	"84532": "base-sepolia",
+	"11155111": "sepolia",
 };
 
-export function getPimlicoUrl(chainId: number): string {
+export function getPimlicoUrl(chainId: string): string {
 	if (!PIMLICO_API_KEY) {
 		throw new Error("PIMLICO_API_KEY required for smart account mode");
 	}
 	const chainName = PIMLICO_CHAINS[chainId];
 	if (!chainName) {
-		throw new Error(`Pimlico does not support chainId ${chainId}`);
+		throw new Error(`Pimlico does not support chain ${chainId}`);
 	}
 	return `https://api.pimlico.io/v2/${chainName}/rpc?apikey=${PIMLICO_API_KEY}`;
 }
 
-export function getBundlerUrl(chainId: number): string {
+export function getBundlerUrl(chainId: string): string {
 	return BUNDLER_URL || getPimlicoUrl(chainId);
 }
 
-export function getPaymasterUrl(chainId: number): string {
+export function getPaymasterUrl(chainId: string): string {
 	return PAYMASTER_URL || getPimlicoUrl(chainId);
 }
 
 // Environment variables
 export const PRIVATE_KEY = process.env.PRIVATE_KEY as `0x${string}` | undefined;
-export const DEFAULT_CHAIN_ID = Number(process.env.DEFAULT_CHAIN_ID) || 84532;
+export const SOLANA_PRIVATE_KEY = process.env.SOLANA_PRIVATE_KEY || "";
+export const DEFAULT_CHAIN_ID = process.env.DEFAULT_CHAIN_ID || "84532";
 export const WALLET_PORT = Number(process.env.WALLET_PORT) || 18420;
 export const WALLET_AUTH_TOKEN = process.env.WALLET_AUTH_TOKEN || "";
 export const WALLET_POLICY = process.env.WALLET_POLICY || "";
@@ -122,8 +153,8 @@ export function getWalletMode() {
 export function getPrivateKey() {
 	return process.env.PRIVATE_KEY as `0x${string}` | undefined;
 }
-export function getDefaultChainId() {
-	return Number(process.env.DEFAULT_CHAIN_ID) || 84532;
+export function getDefaultChainId(): string {
+	return process.env.DEFAULT_CHAIN_ID || "84532";
 }
 export function getSessionKey() {
 	return process.env.SESSION_KEY as `0x${string}` | undefined;
@@ -133,6 +164,9 @@ export function getSmartAccountAddress() {
 }
 export function getPimlicoApiKey() {
 	return process.env.PIMLICO_API_KEY || "";
+}
+export function getSolanaPrivateKey() {
+	return process.env.SOLANA_PRIVATE_KEY || "";
 }
 
 export function validateConfig(): void {

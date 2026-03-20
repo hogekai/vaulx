@@ -9,13 +9,13 @@ import { getBundlerUrl, getPaymasterUrl } from "../config.js";
 interface DeployResult {
 	smartAccountAddress: `0x${string}`;
 	ownerAddress: `0x${string}`;
-	chainId: number;
+	chainId: string;
 	deployed: boolean;
 }
 
 export async function deploySmartAccount(
 	privateKey: `0x${string}`,
-	chainId: number,
+	chainId: string,
 ): Promise<DeployResult> {
 	const owner = privateKeyToAccount(privateKey);
 	const chain = getViemChain(chainId);

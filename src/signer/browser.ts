@@ -6,20 +6,20 @@ import type { Signer, TxParams } from "./types.js";
 
 export interface PendingTx {
 	params: TxParams;
-	resolve: (hash: `0x${string}`) => void;
+	resolve: (hash: string) => void;
 	reject: (error: Error) => void;
 	createdAt: number;
 }
 
 export interface PendingSign {
 	message: string;
-	resolve: (signature: `0x${string}`) => void;
+	resolve: (signature: string) => void;
 	reject: (error: Error) => void;
 	createdAt: number;
 }
 
 export interface PendingConnect {
-	resolve: (address: `0x${string}`) => void;
+	resolve: (address: string) => void;
 	reject: (error: Error) => void;
 	createdAt: number;
 }
@@ -28,7 +28,7 @@ export interface BrowserSignerState {
 	pendingTxs: Map<string, PendingTx>;
 	pendingSigns: Map<string, PendingSign>;
 	pendingConnects: Map<string, PendingConnect>;
-	connectedAddress: `0x${string}` | null;
+	connectedAddress: string | null;
 }
 
 const TIMEOUT_MS = 120_000;
@@ -50,17 +50,17 @@ export function createBrowserSigner(port: number): Signer & {
 	};
 
 	return {
-		mode: "browser" as const,
+		mode: "browser",
 		hasPaymaster: false,
 		state,
 
-		async getAddress(): Promise<`0x${string}`> {
+		async getAddress() {
 			if (state.connectedAddress) return state.connectedAddress;
 
 			const nonce = randomUUID();
 			openBrowser(`http://127.0.0.1:${port}/connect/${nonce}`);
 
-			return new Promise<`0x${string}`>((resolve, reject) => {
+			return new Promise<string>((resolve, reject) => {
 				state.pendingConnects.set(nonce, {
 					resolve: (address) => {
 						state.connectedAddress = address;
@@ -79,11 +79,11 @@ export function createBrowserSigner(port: number): Signer & {
 			});
 		},
 
-		async sendTransaction(params: TxParams): Promise<`0x${string}`> {
+		async sendTransaction(params: TxParams) {
 			const nonce = randomUUID();
 			openBrowser(`http://127.0.0.1:${port}/confirm/${nonce}`);
 
-			return new Promise<`0x${string}`>((resolve, reject) => {
+			return new Promise<string>((resolve, reject) => {
 				state.pendingTxs.set(nonce, {
 					params,
 					resolve,
@@ -100,11 +100,11 @@ export function createBrowserSigner(port: number): Signer & {
 			});
 		},
 
-		async signMessage(message: string): Promise<`0x${string}`> {
+		async signMessage(message: string) {
 			const nonce = randomUUID();
 			openBrowser(`http://127.0.0.1:${port}/sign/${nonce}`);
 
-			return new Promise<`0x${string}`>((resolve, reject) => {
+			return new Promise<string>((resolve, reject) => {
 				state.pendingSigns.set(nonce, {
 					message,
 					resolve,
@@ -121,10 +121,10 @@ export function createBrowserSigner(port: number): Signer & {
 			});
 		},
 
-		async getBalance(chainId: number): Promise<bigint> {
+		async getBalance(chainId: string) {
 			const address = await this.getAddress();
 			const client = getPublicClient(chainId);
-			return client.getBalance({ address });
+			return client.getBalance({ address: address as `0x${string}` });
 		},
 	};
 }

@@ -1,15 +1,15 @@
 export interface TxParams {
-	to: `0x${string}`;
+	to: string;
 	value: bigint;
-	chainId: number;
-	data?: `0x${string}`;
+	chainId: string;
+	data?: string;
 }
 
 export interface Signer {
-	readonly mode: "env" | "browser" | "smart-account" | "session-key";
+	readonly mode: string;
 	readonly hasPaymaster: boolean;
-	getAddress(): Promise<`0x${string}`>;
-	sendTransaction(params: TxParams): Promise<`0x${string}`>;
-	signMessage(message: string): Promise<`0x${string}`>;
-	getBalance(chainId: number): Promise<bigint>;
+	getAddress(): Promise<string>;
+	sendTransaction(params: TxParams): Promise<string>;
+	signMessage(message: string): Promise<string>;
+	getBalance(chainId: string): Promise<bigint>;
 }

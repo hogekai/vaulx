@@ -1,6 +1,6 @@
 import { type Chain, createPublicClient, http, type PublicClient } from "viem";
 import { base, baseSepolia, mainnet, sepolia } from "viem/chains";
-import { getRpcUrl } from "./config.js";
+import { getRpcUrl, numericChainId } from "./config.js";
 
 const VIEM_CHAINS: Record<number, Chain> = {
 	1: mainnet,
@@ -9,13 +9,14 @@ const VIEM_CHAINS: Record<number, Chain> = {
 	11155111: sepolia,
 };
 
-export function getViemChain(chainId: number): Chain {
-	const chain = VIEM_CHAINS[chainId];
+export function getViemChain(chainId: string): Chain {
+	const n = numericChainId(chainId);
+	const chain = VIEM_CHAINS[n];
 	if (!chain) throw new Error(`No viem chain for chainId ${chainId}`);
 	return chain;
 }
 
-export function getPublicClient(chainId: number): PublicClient {
+export function getPublicClient(chainId: string): PublicClient {
 	return createPublicClient({
 		chain: getViemChain(chainId),
 		transport: http(getRpcUrl(chainId)),

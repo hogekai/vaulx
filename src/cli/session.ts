@@ -15,7 +15,7 @@ interface SessionKeyResult {
 export async function createSessionKey(
 	ownerPrivateKey: `0x${string}`,
 	smartAccountAddress: `0x${string}`,
-	chainId: number,
+	chainId: string,
 ): Promise<SessionKeyResult> {
 	const owner = privateKeyToAccount(ownerPrivateKey);
 	const chain = getViemChain(chainId);

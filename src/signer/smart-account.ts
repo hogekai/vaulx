@@ -8,7 +8,7 @@ import type { Signer, TxParams } from "./types.js";
 
 interface SmartAccountSignerConfig {
 	ownerPrivateKey: `0x${string}`;
-	chainId: number;
+	chainId: string;
 	bundlerUrl: string;
 	paymasterUrl?: string;
 }
@@ -50,33 +50,28 @@ export async function createSmartAccountSigner(config: SmartAccountSignerConfig)
 	const accountAddress = kernelAccount.address;
 
 	return {
-		mode: "smart-account" as const,
+		mode: "smart-account",
 		hasPaymaster: !!config.paymasterUrl,
 
-		async getAddress(): Promise<`0x${string}`> {
+		async getAddress() {
 			return accountAddress;
 		},
 
-		async sendTransaction(params: TxParams): Promise<`0x${string}`> {
-			// permissionless sendTransaction internally:
-			// 1. builds UserOperation
-			// 2. sends via bundler
-			// 3. waits for receipt (waitForUserOperationReceipt)
-			// 4. returns the real transaction hash
+		async sendTransaction(params: TxParams) {
 			const hash = await smartAccountClient.sendTransaction({
-				to: params.to,
+				to: params.to as `0x${string}`,
 				value: params.value,
-				data: params.data ?? "0x",
+				data: (params.data ?? "0x") as `0x${string}`,
 				chain,
 			});
 			return hash;
 		},
 
-		async signMessage(message: string): Promise<`0x${string}`> {
+		async signMessage(message: string) {
 			return kernelAccount.signMessage({ message });
 		},
 
-		async getBalance(chainId: number): Promise<bigint> {
+		async getBalance(chainId: string) {
 			const client = getPublicClient(chainId);
 			return client.getBalance({ address: accountAddress });
 		},

@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { formatEther, parseEther } from "viem";
-import { DEFAULT_CHAIN_ID, getChain, resolveChainId } from "../../config.js";
+import { formatEther, formatUnits, parseEther } from "viem";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { getChain, isSolanaChain, resolveChainId } from "../../config.js";
 import { VaulxError } from "../../errors.js";
 import { executeTx } from "../../helpers/execute-tx.js";
 import { validateAddress, validateAmount } from "../../helpers/validate.js";
@@ -37,17 +38,20 @@ export async function handleApiRoutes(
 	}
 
 	// GET /balance/:chainId
-	const balanceMatch = path.match(/^\/balance\/(\d+)$/);
+	const balanceMatch = path.match(/^\/balance\/(.+)$/);
 	if (method === "GET" && balanceMatch) {
-		const chainId = Number(balanceMatch[1]);
+		const chainId = balanceMatch[1];
 		try {
 			const chain = getChain(chainId);
 			const signer = await ctx.chainManager.getSigner(chainId);
 			const balance = await signer.getBalance(chainId);
+			const formatted = isSolanaChain(chainId)
+				? formatUnits(balance, 9)
+				: formatEther(balance);
 			jsonResponse(res, 200, {
 				chainId,
 				network: chain.name,
-				balance: formatEther(balance),
+				balance: formatted,
 				symbol: chain.nativeCurrency.symbol,
 			});
 		} catch (err) {
@@ -63,21 +67,33 @@ export async function handleApiRoutes(
 		try {
 			const body = (await parseBody(req)) as Record<string, unknown>;
 
-			const to = validateAddress((body.to ?? body.recipient) as string);
-			const ethValue = validateAmount((body.value ?? body.amount) as string, "value");
 			const chainId = resolveChainId(
-				(body.chainId ?? body.network ?? DEFAULT_CHAIN_ID) as string | number,
+				(body.chainId ?? body.network) as string | number | undefined,
 			);
-			const value = parseEther(ethValue);
-			const token = ((body.token as string) ?? "ETH").toUpperCase();
+			const chain = getChain(chainId);
+			const to = validateAddress((body.to ?? body.recipient) as string, chainId);
+			const amountStr = validateAmount((body.value ?? body.amount) as string, "value");
+			const nativeSymbol = chain.nativeCurrency.symbol;
+			const token = ((body.token as string) ?? nativeSymbol).toUpperCase();
+
+			let value: bigint;
+			if (isSolanaChain(chainId)) {
+				value = BigInt(Math.round(parseFloat(amountStr) * LAMPORTS_PER_SOL));
+			} else {
+				value = parseEther(amountStr);
+			}
+
 			const txSigner = await ctx.chainManager.getSigner(chainId);
 
 			// Balance check (skip with paymaster)
 			if (!txSigner.hasPaymaster) {
 				const balance = await txSigner.getBalance(chainId);
 				if (balance < value) {
+					const formatted = isSolanaChain(chainId)
+						? formatUnits(balance, 9)
+						: formatEther(balance);
 					throw new VaulxError(
-						`Have: ${formatEther(balance)} ETH, Need: ${ethValue} ETH`,
+						`Have: ${formatted} ${nativeSymbol}, Need: ${amountStr} ${nativeSymbol}`,
 						"INSUFFICIENT_BALANCE",
 					);
 				}

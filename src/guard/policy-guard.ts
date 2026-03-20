@@ -3,8 +3,8 @@ import type { SpendingPolicy } from "../policy.js";
 
 export interface PolicyCheckParams {
 	value?: bigint;
-	to?: `0x${string}`;
-	chainId?: number;
+	to?: string;
+	chainId?: string;
 	token?: string;
 	slippage?: number;
 }
@@ -21,6 +21,24 @@ export interface PolicyGuard {
 
 export function createPolicyGuard(initialPolicy: SpendingPolicy, store: Store): PolicyGuard {
 	let policy = initialPolicy;
+
+	function getEffectivePolicy(chainId?: string) {
+		if (chainId && policy.chainOverrides?.[chainId]) {
+			const overrides = policy.chainOverrides[chainId];
+			return {
+				maxPerTx: overrides.maxPerTx ?? policy.maxPerTx,
+				maxPerDay: overrides.maxPerDay ?? policy.maxPerDay,
+				maxTotal: overrides.maxTotal ?? policy.maxTotal,
+				allowedTokens: overrides.allowedTokens ?? policy.allowedTokens,
+			};
+		}
+		return {
+			maxPerTx: policy.maxPerTx,
+			maxPerDay: policy.maxPerDay,
+			maxTotal: policy.maxTotal,
+			allowedTokens: policy.allowedTokens,
+		};
+	}
 
 	return {
 		get policy() {
@@ -61,14 +79,16 @@ export function createPolicyGuard(initialPolicy: SpendingPolicy, store: Store): 
 				};
 			}
 
+			const effective = getEffectivePolicy(params.chainId);
+
 			// Check token allowed (case-insensitive)
 			if (
 				params.token &&
-				!policy.allowedTokens.map((t) => t.toUpperCase()).includes(params.token.toUpperCase())
+				!effective.allowedTokens.map((t) => t.toUpperCase()).includes(params.token.toUpperCase())
 			) {
 				return {
 					ok: false,
-					reason: `Token "${params.token}" not allowed. Allowed: ${policy.allowedTokens.join(", ")}`,
+					reason: `Token "${params.token}" not allowed. Allowed: ${effective.allowedTokens.join(", ")}`,
 				};
 			}
 
@@ -119,7 +139,7 @@ export function createPolicyGuard(initialPolicy: SpendingPolicy, store: Store): 
 
 			if (params.value !== undefined && operation !== "approve") {
 				// Check per-tx limit
-				const maxPerTx = BigInt(policy.maxPerTx);
+				const maxPerTx = BigInt(effective.maxPerTx);
 				if (params.value > maxPerTx) {
 					return {
 						ok: false,
@@ -128,8 +148,8 @@ export function createPolicyGuard(initialPolicy: SpendingPolicy, store: Store): 
 				}
 
 				// Check daily limit
-				if (policy.maxPerDay && params.chainId !== undefined) {
-					const maxPerDay = BigInt(policy.maxPerDay);
+				if (effective.maxPerDay && params.chainId !== undefined) {
+					const maxPerDay = BigInt(effective.maxPerDay);
 					const today = new Date().toISOString().slice(0, 10);
 					const dailyKey = `daily:${params.chainId}:${today}`;
 					const current = BigInt((await store.get<string>(dailyKey)) ?? "0");
@@ -142,9 +162,10 @@ export function createPolicyGuard(initialPolicy: SpendingPolicy, store: Store): 
 				}
 
 				// Check total limit
-				if (policy.maxTotal) {
-					const maxTotal = BigInt(policy.maxTotal);
-					const total = BigInt((await store.get<string>("total-spent")) ?? "0");
+				if (effective.maxTotal && params.chainId !== undefined) {
+					const maxTotal = BigInt(effective.maxTotal);
+					const totalKey = `total-spent:${params.chainId}`;
+					const total = BigInt((await store.get<string>(totalKey)) ?? "0");
 					if (total + params.value > maxTotal) {
 						return {
 							ok: false,

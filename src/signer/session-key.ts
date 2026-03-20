@@ -9,7 +9,7 @@ import type { Signer, TxParams } from "./types.js";
 interface SessionKeySignerConfig {
 	sessionKey: `0x${string}`;
 	smartAccountAddress: `0x${string}`;
-	chainId: number;
+	chainId: string;
 	bundlerUrl: string;
 	paymasterUrl?: string;
 }
@@ -51,30 +51,28 @@ export async function createSessionKeySigner(config: SessionKeySignerConfig): Pr
 	});
 
 	return {
-		mode: "session-key" as const,
+		mode: "session-key",
 		hasPaymaster: !!config.paymasterUrl,
 
-		async getAddress(): Promise<`0x${string}`> {
+		async getAddress() {
 			return config.smartAccountAddress;
 		},
 
-		async sendTransaction(params: TxParams): Promise<`0x${string}`> {
-			// Session key limits are enforced on-chain by the validator module.
-			// If limits are exceeded, the UserOp will revert at EntryPoint.
+		async sendTransaction(params: TxParams) {
 			const hash = await smartAccountClient.sendTransaction({
-				to: params.to,
+				to: params.to as `0x${string}`,
 				value: params.value,
-				data: params.data ?? "0x",
+				data: (params.data ?? "0x") as `0x${string}`,
 				chain,
 			});
 			return hash;
 		},
 
-		async signMessage(message: string): Promise<`0x${string}`> {
+		async signMessage(message: string) {
 			return kernelAccount.signMessage({ message });
 		},
 
-		async getBalance(chainId: number): Promise<bigint> {
+		async getBalance(chainId: string) {
 			const client = getPublicClient(chainId);
 			return client.getBalance({ address: config.smartAccountAddress });
 		},

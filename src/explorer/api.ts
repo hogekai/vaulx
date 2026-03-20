@@ -1,22 +1,22 @@
-import { BASESCAN_API_KEY, ETHERSCAN_API_KEY, EXPLORER_API_KEY } from "../config.js";
+import { BASESCAN_API_KEY, ETHERSCAN_API_KEY, EXPLORER_API_KEY, numericChainId } from "../config.js";
 import { VaulxError } from "../errors.js";
 
-const EXPLORER_API_URLS: Record<number, string> = {
-	1: "https://api.etherscan.io/api",
-	8453: "https://api.basescan.org/api",
-	84532: "https://api-sepolia.basescan.org/api",
-	11155111: "https://api-sepolia.etherscan.io/api",
+const EXPLORER_API_URLS: Record<string, string> = {
+	"1": "https://api.etherscan.io/api",
+	"8453": "https://api.basescan.org/api",
+	"84532": "https://api-sepolia.basescan.org/api",
+	"11155111": "https://api-sepolia.etherscan.io/api",
 };
 
-const BASESCAN_CHAINS = new Set([8453, 84532]);
+const BASESCAN_CHAINS = new Set(["8453", "84532"]);
 
-export function getExplorerApiUrl(chainId: number): string {
+export function getExplorerApiUrl(chainId: string): string {
 	const url = EXPLORER_API_URLS[chainId];
 	if (!url) throw new VaulxError(`No explorer API for chain ${chainId}`, "EXPLORER_ERROR");
 	return url;
 }
 
-export function getExplorerApiKey(chainId: number): string {
+export function getExplorerApiKey(chainId: string): string {
 	const perChain = process.env[`ETHERSCAN_API_KEY_${chainId}`];
 	if (perChain) return perChain;
 	if (BASESCAN_CHAINS.has(chainId) && BASESCAN_API_KEY) return BASESCAN_API_KEY;
@@ -31,7 +31,7 @@ export interface ExplorerResponse<T> {
 }
 
 export async function fetchExplorerApi<T>(
-	chainId: number,
+	chainId: string,
 	params: Record<string, string>,
 ): Promise<T> {
 	const base = getExplorerApiUrl(chainId);
