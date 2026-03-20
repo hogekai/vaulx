@@ -50,6 +50,10 @@ if (!process.env.PRIVATE_KEY && process.env.WALLET_MODE !== "browser") {
 		const key = await loadFromKeychain(walletName);
 		if (key) {
 			process.env.PRIVATE_KEY = key;
+			// Solana chains use SOLANA_PRIVATE_KEY — set it from the same keychain key
+			if (!process.env.SOLANA_PRIVATE_KEY) {
+				process.env.SOLANA_PRIVATE_KEY = key;
+			}
 		}
 	} catch {
 		// Keychain module not available or failed — let index.ts handle missing key
