@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.7.1] - 2026-03-20
+
+### Fixed
+- Add async mutex to `executeTx` preventing concurrent policy check bypass via interleaved awaits
+- Abort EVM swap on quote failure instead of proceeding with `amountOutMinimum=0` (MEV protection)
+- Route swap auto-approve through `executeTx` for proper policy check, logging, and duplicate detection
+- Pass actual token amount to policy check in ERC20 `send_token` and `withdraw` (was passing `0n`)
+- Add duplicate detection to Solana SPL send and Jupiter swap paths
+- Add retry with backoff to receipt tracking (was silently swallowing all errors)
+- Replace float-based Solana amount parsing with string-based `parseTokenUnits` to avoid precision loss
+
+### Changed
+- `withdraw` tool now requires explicit `fullBalance: true` flag when omitting amount
+- Agent Payment Protocol link updated to `agentprotocols` GitHub org
+
 ## [0.7.0] - 2026-03-20
 
 ### Added

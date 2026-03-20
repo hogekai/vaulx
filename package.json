@@ -1,6 +1,6 @@
 {
   "name": "@vaulx/vaulx",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "type": "module",
   "bin": {
     "vaulx": "./dist/cli/index.js"
