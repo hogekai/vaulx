@@ -51,5 +51,14 @@ export function createSolanaEnvSigner(chainId: string): Signer {
 		async getBalance(_chainId: string) {
 			return BigInt(await connection.getBalance(keypair.publicKey));
 		},
+
+		async signRawBytes(message: Uint8Array): Promise<Uint8Array> {
+			const nacl = await import("tweetnacl");
+			return nacl.sign.detached(message, keypair.secretKey);
+		},
+
+		getSolanaKeypair() {
+			return keypair;
+		},
 	};
 }

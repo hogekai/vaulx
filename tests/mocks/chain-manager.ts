@@ -1,21 +1,34 @@
+import type { Connection } from "@solana/web3.js";
 import type { PublicClient } from "viem";
 import type { ChainManager } from "../../src/chain/manager.js";
 import type { Signer } from "../../src/signer/types.js";
 import { createMockSigner, type MockSignerOptions } from "./signer.js";
 
+export interface MockChainManagerOptions {
+	signer?: MockSignerOptions;
+	defaultChainId?: string;
+}
+
 export function createMockChainManager(
-	signerOpts?: MockSignerOptions,
+	signerOrOpts?: MockSignerOptions | MockChainManagerOptions,
 ): ChainManager & { signer: Signer } {
-	const signer = createMockSigner(signerOpts);
+	// Support both old (MockSignerOptions) and new (MockChainManagerOptions) signatures
+	const opts: MockChainManagerOptions =
+		signerOrOpts && "signer" in signerOrOpts
+			? (signerOrOpts as MockChainManagerOptions)
+			: { signer: signerOrOpts as MockSignerOptions | undefined };
+
+	const signer = createMockSigner(opts.signer);
+	const chainId = opts.defaultChainId ?? "84532";
 
 	return {
 		signer,
-		defaultChainId: 84532,
+		defaultChainId: chainId,
 
 		chains() {
 			return [
 				{
-					chainId: 84532,
+					chainId: "84532",
 					name: "base-sepolia",
 					rpc: "https://sepolia.base.org",
 					nativeCurrency: { symbol: "ETH", decimals: 18 },
@@ -24,10 +37,10 @@ export function createMockChainManager(
 			];
 		},
 
-		getPublicClient(_chainId: number): PublicClient {
+		getPublicClient(_chainId: string): PublicClient {
 			return {
 				waitForTransactionReceipt: async () => ({ status: "success" }),
-				getBalance: async () => signerOpts?.balance ?? 1_000_000_000_000_000_000n,
+				getBalance: async () => opts.signer?.balance ?? 1_000_000_000_000_000_000n,
 				readContract: async () => 0n,
 				estimateGas: async () => 21000n,
 				getGasPrice: async () => 1_000_000_000n,
@@ -35,7 +48,20 @@ export function createMockChainManager(
 			} as unknown as PublicClient;
 		},
 
-		async getSigner(_chainId: number): Promise<Signer> {
+		getConnection(_chainId: string): Connection {
+			return {
+				getLatestBlockhash: async () => ({
+					blockhash: "mock-blockhash",
+					lastValidBlockHeight: 100,
+				}),
+				getBalance: async () => opts.signer?.balance ?? 1_000_000_000,
+				sendRawTransaction: async () => "mock-sig",
+			} as unknown as Connection;
+		},
+
+		reset() {},
+
+		async getSigner(_chainId: string): Promise<Signer> {
 			return signer;
 		},
 	};

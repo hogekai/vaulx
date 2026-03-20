@@ -17,10 +17,15 @@ export async function setupToolTest(
 	opts?: {
 		policy?: Partial<SpendingPolicy>;
 		signer?: MockSignerOptions;
+		defaultChainId?: string;
 	},
 ): Promise<ToolTestContext> {
 	const store = memoryStore();
-	const chainManager = createMockChainManager(opts?.signer);
+	const chainManager = createMockChainManager(
+		opts?.defaultChainId
+			? { signer: opts.signer, defaultChainId: opts.defaultChainId }
+			: opts?.signer,
+	);
 	const policyGuard = createPolicyGuard(
 		{
 			maxPerTx: "1000000000000000000",

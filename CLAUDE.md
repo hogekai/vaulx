@@ -21,6 +21,8 @@ Two transports, one process: MCP tools/resources over stdio for Claude Code, plu
 - **Chain ID is string.** EVM chains use numeric strings (`"84532"`), Solana uses cluster names (`"solana-devnet"`). `isSolanaChain(chainId)` checks prefix. EVM libs get numeric IDs via `numericChainId()`.
 - **Solana tools use dynamic imports.** `@solana/web3.js` and `@solana/spl-token` are imported at call time to avoid loading when unused. Pattern: build Transaction → sign with Keypair → `connection.sendRawTransaction()` → `txLog.record()` → `trackReceipt()`.
 - **Jupiter for Solana swaps.** REST API at `https://quote-api.jup.ag/v6` — no API key. Returns VersionedTransaction to sign and send.
+- **signRawBytes and getSolanaKeypair are optional Signer methods.** Only SolanaEnvSigner implements them. Tools guard with `isSolanaChain()` + method existence check.
+- **Raw tx signing skips policy guard.** Fee payer gas cost (~5000 lamports) is negligible. Program-internal lamport transfers are not vaulx's responsibility.
 
 ## Protocol
 
@@ -58,9 +60,9 @@ src/
 ├── client.ts               — Shared getPublicClient(), getViemChain()
 ├── policy.ts               — SpendingPolicy zod schema, loadPolicy()
 ├── signer/
-│   ├── types.ts            — Signer interface (mode, hasPaymaster, getAddress, sendTransaction, signMessage, getBalance)
+│   ├── types.ts            — Signer interface (mode, hasPaymaster, getAddress, sendTransaction, signMessage, getBalance, signRawBytes?, getSolanaKeypair?)
 │   ├── env.ts              — EnvSigner: privateKeyToAccount + NonceManager (EVM)
-│   ├── solana-env.ts       — SolanaEnvSigner: Keypair + SystemProgram.transfer
+│   ├── solana-env.ts       — SolanaEnvSigner: Keypair + SystemProgram.transfer + signRawBytes + getSolanaKeypair
 │   ├── browser.ts          — BrowserSigner: MetaMask confirmation via localhost pages
 │   ├── smart-account.ts    — SmartAccountSigner: Kernel + Pimlico bundler/paymaster
 │   ├── session-key.ts      — SessionKeySigner: session key → smart account
@@ -82,6 +84,8 @@ src/
 │   ├── send-transaction.ts — MCP tool: native send (ETH/SOL)
 │   ├── send-token.ts       — MCP tool: token send (ERC20/SPL)
 │   ├── sign-message.ts     — MCP tool: message signing
+│   ├── sign-bytes.ts       — MCP tool: Ed25519 raw bytes signing (Solana only)
+│   ├── sign-and-send-raw-transaction.ts — MCP tool: sign + submit arbitrary Solana tx
 │   ├── approve-token.ts    — MCP tool: token approve (ERC20 approve / SPL delegate)
 │   ├── revoke-token.ts     — MCP tool: revoke approval (ERC20 / SPL delegate)
 │   ├── swap-token.ts       — MCP tool: token swap (Uniswap V3 / Jupiter)
@@ -107,7 +111,7 @@ src/
 │   ├── handlers/
 │   │   ├── pages.ts        — /health, /deposit
 │   │   ├── browser.ts      — /connect, /confirm, /sign nonce routes
-│   │   └── api.ts          — /address, /balance, /api/send-transaction
+│   │   └── api.ts          — /address, /balance, /api/send-transaction, /api/sign-bytes, /api/sign-and-send-raw-transaction
 │   └── pages/
 │       ├── connect.ts      — Wallet connection page
 │       ├── confirm.ts      — TX confirmation page

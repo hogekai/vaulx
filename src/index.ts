@@ -24,6 +24,8 @@ import { registerGetTransactions } from "./tools/get-transactions.js";
 import { registerRevokeToken } from "./tools/revoke-token.js";
 import { registerSendToken } from "./tools/send-token.js";
 import { registerSendTransaction } from "./tools/send-transaction.js";
+import { registerSignAndSendRawTransaction } from "./tools/sign-and-send-raw-transaction.js";
+import { registerSignBytes } from "./tools/sign-bytes.js";
 import { registerSignMessage } from "./tools/sign-message.js";
 import { registerSwapToken } from "./tools/swap-token.js";
 import { registerWalletManagement } from "./tools/wallet-management.js";
@@ -74,6 +76,8 @@ registerGetTransactions(server, txLog);
 registerGetOnchainHistory(server, { chainManager });
 registerGetSpending(server, { chainManager, policyGuard, store });
 
+registerSignBytes(server, { chainManager, policyGuard });
+registerSignAndSendRawTransaction(server, { chainManager, txLog });
 registerWalletManagement(server, { chainManager, policyGuard });
 
 if (ENABLE_SWAP) {
