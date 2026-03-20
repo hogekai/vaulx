@@ -1,6 +1,6 @@
 # @vaulx/vaulx
 
-Agent wallet MCP server implementing the [Agent Payment Protocol](https://github.com/hogekai/agent-payment-protocol). Gives Claude Code (or any MCP client) its own wallet — send ETH/SOL, swap tokens, check balances, auto-pay via APP-compliant elicitation hooks.
+Agent wallet MCP server implementing the [Agent Payment Protocol](https://github.com/agentprotocols/agent-payment-protocol). Gives Claude Code (or any MCP client) its own wallet — send ETH/SOL, swap tokens, check balances, auto-pay via APP-compliant elicitation hooks.
 
 Supports EVM chains (Ethereum, Base, Sepolia) and Solana (mainnet, devnet).
 
@@ -139,7 +139,7 @@ Auth: `Authorization: Bearer {WALLET_AUTH_TOKEN}`.
 
 ## Spending Policy
 
-Conforms to the [Agent Payment Protocol Spending Policy](https://github.com/hogekai/agent-payment-protocol/blob/main/spec.md#5-spending-policy) schema. Set via `vaulx init` prompts, or edit `~/.vaulx/wallets/{name}/wallet-policy.json` directly.
+Conforms to the [Agent Payment Protocol Spending Policy](https://github.com/agentprotocols/agent-payment-protocol/blob/main/spec.md#5-spending-policy) schema. Set via `vaulx init` prompts, or edit `~/.vaulx/wallets/{name}/wallet-policy.json` directly.
 
 | Field | Description |
 |-------|-------------|
@@ -182,7 +182,7 @@ Deploys an ERC-4337 smart account with Pimlico paymaster (gas-sponsored). Requir
 
 ## Auto-Payment Hook
 
-`hooks/handle-payment.js` is a Claude Code elicitation hook that implements the [Agent Payment Protocol](https://github.com/hogekai/agent-payment-protocol). When a server requests payment via the `[x-agent-payment:{...}]` discovery tag, vaulx automatically detects the request, evaluates the spending policy, and pays on behalf of the agent.
+`hooks/handle-payment.js` is a Claude Code elicitation hook that implements the [Agent Payment Protocol](https://github.com/agentprotocols/agent-payment-protocol). When a server requests payment via the `[x-agent-payment:{...}]` discovery tag, vaulx automatically detects the request, evaluates the spending policy, and pays on behalf of the agent.
 
 Compatible with any MCP server that issues APP-compliant payment requests, including [lynq](https://github.com/hogekai/lynq)'s `agentPayment()` middleware. The legacy `[x-lynq-payment:{...}]` tag is still detected for backward compatibility.
 

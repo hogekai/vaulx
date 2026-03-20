@@ -25,7 +25,7 @@ Two transports, one process: MCP tools/resources over stdio for Claude Code, plu
 ## Protocol
 
 vaulx implements the Agent Payment Protocol (APP).
-See: https://github.com/hogekai/agent-payment-protocol
+See: https://github.com/agentprotocols/agent-payment-protocol
 
 - Discovery tag: `[x-agent-payment:{...}]` (legacy `[x-lynq-payment:{...}]` also detected)
 - Payment proof format: `{ type: "tx_hash" | "signature", value: "0x..." }`
