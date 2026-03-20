@@ -30,7 +30,7 @@ export const CHAINS: Record<string, ChainConfig> = {
 		nativeCurrency: { symbol: "ETH", decimals: 18 },
 		blockExplorer: "https://sepolia.etherscan.io",
 	},
-	"solana": {
+	solana: {
 		name: "solana",
 		rpc: "https://api.mainnet-beta.solana.com",
 		nativeCurrency: { symbol: "SOL", decimals: 9 },

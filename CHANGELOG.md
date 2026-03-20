@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.7.0] - 2026-03-20
+
+### Added
+- Solana chain support (mainnet + devnet) alongside existing EVM chains
+- Solana signer (`solana-env.ts`): Ed25519 keypair, SOL transfer, message signing
+- SPL token support: send, approve (delegate), revoke, balance queries
+- Jupiter DEX integration for Solana token swaps (quote + swap API, VersionedTransaction)
+- Solana address validation (Base58) in `validateAddress()`
+- `chainOverrides` in spending policy for per-chain limits (e.g. different maxPerTx for SOL vs ETH)
+- `SOLANA_PRIVATE_KEY`, `SOLANA_RPC_URL` environment variables
+- Solana Devnet faucet link in CLI init and deposit page
+- SPL token registry entries (USDC, USDT on solana/solana-devnet)
+
+### Changed
+- Chain ID unified as string across codebase: EVM uses `"84532"`, Solana uses `"solana-devnet"`
+- Signer interface generalized: `0x${string}` types → `string` for chain-agnostic compatibility
+- `ChainManager` gains `getConnection()` for Solana RPC alongside `getPublicClient()` for EVM
+- `total-spent` store key changed to per-chain (`total-spent:{chainId}`) to prevent cross-chain unit mixing
+- Tool descriptions updated to reflect multi-chain support
+- README and CLAUDE.md updated with Solana docs, chain matrix, and architecture notes
+
 ## [0.6.0] - 2026-03-20
 
 ### Added

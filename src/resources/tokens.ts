@@ -188,10 +188,7 @@ export function registerTokenResources(
 
 				for (const token of tokens) {
 					try {
-						const ata = await getAssociatedTokenAddress(
-							new PublicKey(token.address),
-							ownerPubkey,
-						);
+						const ata = await getAssociatedTokenAddress(new PublicKey(token.address), ownerPubkey);
 						const account = await getAccount(connection, ata);
 						balances.push({
 							symbol: token.symbol,

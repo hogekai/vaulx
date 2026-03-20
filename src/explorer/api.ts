@@ -1,4 +1,9 @@
-import { BASESCAN_API_KEY, ETHERSCAN_API_KEY, EXPLORER_API_KEY, numericChainId } from "../config.js";
+import {
+	BASESCAN_API_KEY,
+	ETHERSCAN_API_KEY,
+	EXPLORER_API_KEY,
+	numericChainId,
+} from "../config.js";
 import { VaulxError } from "../errors.js";
 
 const EXPLORER_API_URLS: Record<string, string> = {

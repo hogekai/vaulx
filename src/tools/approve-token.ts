@@ -2,7 +2,13 @@ import type { MCPServer, ToolContext } from "@lynq/lynq";
 import { encodeFunctionData, erc20Abi, parseUnits } from "viem";
 import { z } from "zod";
 import type { ChainManager } from "../chain/manager.js";
-import { DEFAULT_CHAIN_ID, getChain, getSolanaPrivateKey, isSolanaChain, resolveChainId } from "../config.js";
+import {
+	DEFAULT_CHAIN_ID,
+	getChain,
+	getSolanaPrivateKey,
+	isSolanaChain,
+	resolveChainId,
+} from "../config.js";
 import { VaulxError } from "../errors.js";
 import type { PolicyGuard } from "../guard/policy-guard.js";
 import { executeTx } from "../helpers/execute-tx.js";
@@ -22,7 +28,8 @@ export function registerApproveToken(server: MCPServer, ctx: ApproveTokenCtx) {
 	server.tool(
 		"approve_token",
 		{
-			description: "Approve a spender to transfer tokens (ERC20 approve / SPL delegate). Never uses infinite approval.",
+			description:
+				"Approve a spender to transfer tokens (ERC20 approve / SPL delegate). Never uses infinite approval.",
 			input: z.object({
 				spender: z.string().describe("Spender/delegate address"),
 				token: z.string().describe("Token symbol (e.g. 'USDC')"),

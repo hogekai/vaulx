@@ -86,7 +86,7 @@ describe("WalletManager", () => {
 		const found = wallets.find((w) => w.name === "list-test");
 		expect(found).toBeDefined();
 		expect(found!.address).toBe("0xABCD");
-		expect(found!.chainId).toBe(84532);
+		expect(found!.chainId).toBe("84532");
 
 		fs.rmSync(walletDir("list-test"), { recursive: true });
 	});

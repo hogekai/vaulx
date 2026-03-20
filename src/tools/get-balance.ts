@@ -14,14 +14,13 @@ export function registerGetBalance(server: MCPServer, ctx: GetBalanceCtx) {
 	server.tool(
 		"get_balance",
 		{
-			description:
-				"Get wallet balance. Returns native token and all registered token balances.",
+			description: "Get wallet balance. Returns native token and all registered token balances.",
 			input: z.object({
-				chainId: z
-					.union([z.string(), z.number()])
+				chainId: z.union([z.string(), z.number()]).optional().describe("Chain ID or network alias"),
+				network: z
+					.string()
 					.optional()
-					.describe("Chain ID or network alias"),
-				network: z.string().optional().describe("Network alias (e.g. 'base-sepolia', 'solana-devnet')"),
+					.describe("Network alias (e.g. 'base-sepolia', 'solana-devnet')"),
 			}),
 		},
 		async (args, c) => {

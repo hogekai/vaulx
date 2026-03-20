@@ -5,7 +5,7 @@ import { createTxLog, type TxLog, type TxRecord } from "../../src/log/tx-log.js"
 function makeTx(overrides: Partial<TxRecord> = {}): TxRecord {
 	return {
 		hash: "0xabc",
-		chainId: 84532,
+		chainId: "84532",
 		to: "0x1234567890abcdef1234567890abcdef12345678",
 		value: "100000000000000000",
 		token: "ETH",
@@ -42,7 +42,7 @@ describe("TxLog", () => {
 
 	test("record updates total counter", async () => {
 		await txLog.record(makeTx());
-		const total = await store.get<string>("total-spent");
+		const total = await store.get<string>("total-spent:84532");
 		expect(total).toBe("100000000000000000");
 	});
 
@@ -51,7 +51,7 @@ describe("TxLog", () => {
 		await txLog.record(makeTx({ hash: "0xdef" }));
 		const list = await txLog.list();
 		expect(list).toHaveLength(2);
-		const total = await store.get<string>("total-spent");
+		const total = await store.get<string>("total-spent:84532");
 		expect(total).toBe("200000000000000000");
 	});
 
@@ -67,7 +67,7 @@ describe("TxLog", () => {
 
 	test("byChain filters correctly", async () => {
 		await txLog.record(makeTx({ chainId: 84532 }));
-		await txLog.record(makeTx({ chainId: 1, hash: "0xdef" }));
+		await txLog.record(makeTx({ chainId: "1", hash: "0xdef" }));
 		const filtered = await txLog.byChain(84532);
 		expect(filtered).toHaveLength(1);
 	});
@@ -85,7 +85,7 @@ describe("TxLog", () => {
 		const dup = await txLog.isDuplicate({
 			to: "0x1234567890abcdef1234567890abcdef12345678",
 			value: "100000000000000000",
-			chainId: 84532,
+			chainId: "84532",
 		});
 		expect(dup).toBe(true);
 	});
@@ -95,7 +95,7 @@ describe("TxLog", () => {
 		const dup = await txLog.isDuplicate({
 			to: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			value: "100000000000000000",
-			chainId: 84532,
+			chainId: "84532",
 		});
 		expect(dup).toBe(false);
 	});
@@ -105,7 +105,7 @@ describe("TxLog", () => {
 		const dup = await txLog.isDuplicate({
 			to: "0x1234567890abcdef1234567890abcdef12345678",
 			value: "200000000000000000",
-			chainId: 84532,
+			chainId: "84532",
 		});
 		expect(dup).toBe(false);
 	});
@@ -138,7 +138,7 @@ describe("TxLog", () => {
 		const dup = await txLog.isDuplicate({
 			to: "0x1234567890abcdef1234567890abcdef12345678",
 			value: "100000000000000000",
-			chainId: 84532,
+			chainId: "84532",
 		});
 		expect(dup).toBe(false);
 	});

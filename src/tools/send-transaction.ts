@@ -1,6 +1,6 @@
 import type { MCPServer } from "@lynq/lynq";
-import { formatEther, formatUnits, parseEther } from "viem";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { formatEther, formatUnits, parseEther } from "viem";
 import { z } from "zod";
 import type { ChainManager } from "../chain/manager.js";
 import { getChain, isSolanaChain, resolveChainId } from "../config.js";
@@ -20,14 +20,18 @@ export function registerSendTransaction(server: MCPServer, ctx: SendTransactionC
 	server.tool(
 		"send_transaction",
 		{
-			description: "Send native token (ETH/SOL) on a supported chain. Returns tx hash and explorer link.",
+			description:
+				"Send native token (ETH/SOL) on a supported chain. Returns tx hash and explorer link.",
 			input: z.object({
 				to: z.string().optional().describe("Recipient address"),
 				recipient: z.string().optional().describe("Alias for 'to' (agentPayment compat)"),
 				value: z.string().optional().describe("Amount in native token units (e.g. '0.01')"),
 				amount: z.string().optional().describe("Alias for 'value' (agentPayment compat)"),
 				chainId: z.union([z.string(), z.number()]).optional().describe("Chain ID or network alias"),
-				network: z.string().optional().describe("Network alias (e.g. 'base-sepolia', 'solana-devnet')"),
+				network: z
+					.string()
+					.optional()
+					.describe("Network alias (e.g. 'base-sepolia', 'solana-devnet')"),
 				token: z.string().optional().describe("Token symbol (defaults to chain native)"),
 			}),
 		},

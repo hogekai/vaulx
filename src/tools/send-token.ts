@@ -30,7 +30,10 @@ export function registerSendToken(server: MCPServer, ctx: SendTokenCtx) {
 				amount: z.string().optional().describe("Alias for 'value' (agentPayment compat)"),
 				token: z.string().describe("Token symbol (e.g. 'USDC')"),
 				chainId: z.union([z.string(), z.number()]).optional().describe("Chain ID or network alias"),
-				network: z.string().optional().describe("Network alias (e.g. 'base-sepolia', 'solana-devnet')"),
+				network: z
+					.string()
+					.optional()
+					.describe("Network alias (e.g. 'base-sepolia', 'solana-devnet')"),
 			}),
 		},
 		async (args, c) => {
@@ -146,14 +149,10 @@ async function sendSplToken(
 		await getAccount(connection, toAta);
 	} catch {
 		// ATA doesn't exist — create it
-		tx.add(
-			createAssociatedTokenAccountInstruction(fromPubkey, toAta, toPubkey, mintPubkey),
-		);
+		tx.add(createAssociatedTokenAccountInstruction(fromPubkey, toAta, toPubkey, mintPubkey));
 	}
 
-	tx.add(
-		createTransferInstruction(fromAta, toAta, fromPubkey, rawAmount),
-	);
+	tx.add(createTransferInstruction(fromAta, toAta, fromPubkey, rawAmount));
 
 	// We need to sign and send via the Solana signer
 	// The signer.sendTransaction expects TxParams with to/value/chainId

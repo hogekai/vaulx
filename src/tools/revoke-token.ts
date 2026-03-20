@@ -2,7 +2,13 @@ import type { MCPServer, ToolContext } from "@lynq/lynq";
 import { encodeFunctionData, erc20Abi } from "viem";
 import { z } from "zod";
 import type { ChainManager } from "../chain/manager.js";
-import { DEFAULT_CHAIN_ID, getChain, getSolanaPrivateKey, isSolanaChain, resolveChainId } from "../config.js";
+import {
+	DEFAULT_CHAIN_ID,
+	getChain,
+	getSolanaPrivateKey,
+	isSolanaChain,
+	resolveChainId,
+} from "../config.js";
 import { VaulxError } from "../errors.js";
 import type { PolicyGuard } from "../guard/policy-guard.js";
 import { executeTx } from "../helpers/execute-tx.js";

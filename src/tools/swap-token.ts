@@ -2,7 +2,13 @@ import type { MCPServer, ToolContext } from "@lynq/lynq";
 import { encodeFunctionData, erc20Abi, parseEther, parseUnits } from "viem";
 import { z } from "zod";
 import type { ChainManager } from "../chain/manager.js";
-import { DEFAULT_CHAIN_ID, getChain, getSolanaPrivateKey, isSolanaChain, resolveChainId } from "../config.js";
+import {
+	DEFAULT_CHAIN_ID,
+	getChain,
+	getSolanaPrivateKey,
+	isSolanaChain,
+	resolveChainId,
+} from "../config.js";
 import {
 	encodeExactInputSingle,
 	isSwapSupported,
@@ -32,7 +38,8 @@ export function registerSwapToken(server: MCPServer, ctx: SwapTokenCtx) {
 	server.tool(
 		"swap_token",
 		{
-			description: "Swap tokens via Uniswap V3 (EVM) or Jupiter (Solana). Supports native↔token and token↔token swaps.",
+			description:
+				"Swap tokens via Uniswap V3 (EVM) or Jupiter (Solana). Supports native↔token and token↔token swaps.",
 			input: z.object({
 				tokenIn: z.string().describe("Input token symbol (e.g. 'ETH', 'SOL', 'USDC')"),
 				tokenOut: z.string().describe("Output token symbol (e.g. 'USDC', 'ETH', 'SOL')"),
@@ -86,12 +93,12 @@ async function swapEvmUniswap(
 	const isEthIn = args.tokenIn.toUpperCase() === "ETH";
 	const isEthOut = args.tokenOut.toUpperCase() === "ETH";
 
-	const tokenInAddress = (isEthIn
-		? wethAddress
-		: ctx.tokenRegistry.resolve(chainId, args.tokenIn)?.address) as `0x${string}` | undefined;
-	const tokenOutAddress = (isEthOut
-		? wethAddress
-		: ctx.tokenRegistry.resolve(chainId, args.tokenOut)?.address) as `0x${string}` | undefined;
+	const tokenInAddress = (
+		isEthIn ? wethAddress : ctx.tokenRegistry.resolve(chainId, args.tokenIn)?.address
+	) as `0x${string}` | undefined;
+	const tokenOutAddress = (
+		isEthOut ? wethAddress : ctx.tokenRegistry.resolve(chainId, args.tokenOut)?.address
+	) as `0x${string}` | undefined;
 
 	if (!tokenInAddress) {
 		throw new VaulxError(`Token "${args.tokenIn}" not found on chain ${chainId}`, "UNKNOWN_TOKEN");
@@ -222,7 +229,9 @@ async function swapSolanaJupiter(
 	const isSolOut = args.tokenOut.toUpperCase() === "SOL";
 
 	const inputMint = isSolIn ? SOL_MINT : ctx.tokenRegistry.resolve(chainId, args.tokenIn)?.address;
-	const outputMint = isSolOut ? SOL_MINT : ctx.tokenRegistry.resolve(chainId, args.tokenOut)?.address;
+	const outputMint = isSolOut
+		? SOL_MINT
+		: ctx.tokenRegistry.resolve(chainId, args.tokenOut)?.address;
 
 	if (!inputMint) {
 		throw new VaulxError(`Token "${args.tokenIn}" not found on chain ${chainId}`, "UNKNOWN_TOKEN");

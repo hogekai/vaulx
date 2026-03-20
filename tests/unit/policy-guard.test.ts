@@ -27,12 +27,12 @@ describe("PolicyGuard", () => {
 
 	// --- maxPerTx ---
 	test("maxPerTx: exactly at limit → ok", async () => {
-		const r = await guard.check("send", { value: 100000000000000000n, chainId: 84532 });
+		const r = await guard.check("send", { value: 100000000000000000n, chainId: "84532" });
 		expect(r.ok).toBe(true);
 	});
 
 	test("maxPerTx: 1 wei over → rejected", async () => {
-		const r = await guard.check("send", { value: 100000000000000001n, chainId: 84532 });
+		const r = await guard.check("send", { value: 100000000000000001n, chainId: "84532" });
 		expect(r.ok).toBe(false);
 	});
 
@@ -44,7 +44,7 @@ describe("PolicyGuard", () => {
 
 		const r = await guard.check("send", {
 			value: 100000000000000001n, // 0.1+ ETH → total 0.5+ ETH
-			chainId: 84532,
+			chainId: "84532",
 		});
 		expect(r.ok).toBe(false);
 	});
@@ -55,16 +55,16 @@ describe("PolicyGuard", () => {
 
 		const r = await guard.check("send", {
 			value: 100000000000000000n, // exactly 0.1 ETH → total 0.5 ETH
-			chainId: 84532,
+			chainId: "84532",
 		});
 		expect(r.ok).toBe(true);
 	});
 
 	// --- maxTotal ---
 	test("maxTotal: cumulative exceeds → rejected", async () => {
-		await store.set("total-spent", "9999999999999999999"); // just under 10 ETH
+		await store.set("total-spent:84532", "9999999999999999999"); // just under 10 ETH
 
-		const r = await guard.check("send", { value: 2n, chainId: 84532 });
+		const r = await guard.check("send", { value: 2n, chainId: "84532" });
 		expect(r.ok).toBe(false);
 	});
 
@@ -193,19 +193,19 @@ describe("PolicyGuard", () => {
 
 	// --- allowedChains ---
 	test("allowedChains: allowed → ok", async () => {
-		const g = createPolicyGuard(defaultPolicy({ allowedChains: [84532, 11155111] }), store);
-		const r = await g.check("send", { chainId: 84532 });
+		const g = createPolicyGuard(defaultPolicy({ allowedChains: ["84532", "11155111"] }), store);
+		const r = await g.check("send", { chainId: "84532" });
 		expect(r.ok).toBe(true);
 	});
 
 	test("allowedChains: not allowed → rejected", async () => {
-		const g = createPolicyGuard(defaultPolicy({ allowedChains: [84532] }), store);
-		const r = await g.check("send", { chainId: 1 });
+		const g = createPolicyGuard(defaultPolicy({ allowedChains: ["84532"] }), store);
+		const r = await g.check("send", { chainId: "1" });
 		expect(r.ok).toBe(false);
 	});
 
 	test("allowedChains: not set → all allowed", async () => {
-		const r = await guard.check("send", { chainId: 1 });
+		const r = await guard.check("send", { chainId: "1" });
 		expect(r.ok).toBe(true);
 	});
 
@@ -224,7 +224,7 @@ describe("PolicyGuard", () => {
 
 	// --- Edge cases ---
 	test("value 0 passes policy (validateAmount catches this upstream)", async () => {
-		const r = await guard.check("send", { value: 0n, chainId: 84532 });
+		const r = await guard.check("send", { value: 0n, chainId: "84532" });
 		expect(r.ok).toBe(true);
 	});
 });

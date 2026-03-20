@@ -122,7 +122,10 @@ export function registerWalletManagement(server: MCPServer, ctx: WalletManagemen
 				"Create a new agent wallet. Generates private key, stores in keychain (or file), and optionally switches to it.",
 			input: z.object({
 				name: z.string().describe("Wallet name (lowercase alphanumeric + hyphens, 1-32 chars)"),
-				chainId: z.union([z.string(), z.number()]).default("84532").describe("Chain ID or network alias"),
+				chainId: z
+					.union([z.string(), z.number()])
+					.default("84532")
+					.describe("Chain ID or network alias"),
 				switchTo: z.boolean().default(true).describe("Switch to this wallet after creation"),
 			}),
 		},

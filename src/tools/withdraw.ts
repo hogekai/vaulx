@@ -81,14 +81,11 @@ async function withdrawNative(
 	const decimals = chain.nativeCurrency.decimals;
 	const isSolana = isSolanaChain(chainId);
 
-	const formatBalance = (v: bigint) =>
-		isSolana ? formatUnits(v, 9) : formatEther(v);
+	const formatBalance = (v: bigint) => (isSolana ? formatUnits(v, 9) : formatEther(v));
 
 	let value: bigint;
 	if (amount) {
-		value = isSolana
-			? BigInt(Math.round(parseFloat(amount) * 10 ** decimals))
-			: parseEther(amount);
+		value = isSolana ? BigInt(Math.round(parseFloat(amount) * 10 ** decimals)) : parseEther(amount);
 		if (value > balance) {
 			throw new VaulxError(
 				`Insufficient balance. Have: ${formatBalance(balance)} ${symbol}, Need: ${amount} ${symbol}`,

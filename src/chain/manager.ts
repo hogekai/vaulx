@@ -72,7 +72,9 @@ export function createChainManager(): ChainManager {
 
 		getPublicClient(chainId: string): PublicClient {
 			if (isSolanaChain(chainId)) {
-				throw new Error(`getPublicClient() is not available for Solana chain ${chainId}. Use getConnection() instead.`);
+				throw new Error(
+					`getPublicClient() is not available for Solana chain ${chainId}. Use getConnection() instead.`,
+				);
 			}
 			const cached = clientCache.get(chainId);
 			if (cached) return cached;
@@ -83,7 +85,9 @@ export function createChainManager(): ChainManager {
 
 		getConnection(chainId: string): Connection {
 			if (!isSolanaChain(chainId)) {
-				throw new Error(`getConnection() is not available for EVM chain ${chainId}. Use getPublicClient() instead.`);
+				throw new Error(
+					`getConnection() is not available for EVM chain ${chainId}. Use getPublicClient() instead.`,
+				);
 			}
 			const cached = connectionCache.get(chainId);
 			if (cached) return cached;

@@ -85,7 +85,7 @@ const BUILTIN_TOKENS: Record<string, Record<string, TokenEntry>> = {
 			name: "USD Coin",
 		},
 	},
-	"solana": {
+	solana: {
 		USDC: {
 			address: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
 			decimals: 6,

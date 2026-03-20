@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { formatEther, formatUnits, parseEther } from "viem";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { formatEther, formatUnits, parseEther } from "viem";
 import { getChain, isSolanaChain, resolveChainId } from "../../config.js";
 import { VaulxError } from "../../errors.js";
 import { executeTx } from "../../helpers/execute-tx.js";
@@ -45,9 +45,7 @@ export async function handleApiRoutes(
 			const chain = getChain(chainId);
 			const signer = await ctx.chainManager.getSigner(chainId);
 			const balance = await signer.getBalance(chainId);
-			const formatted = isSolanaChain(chainId)
-				? formatUnits(balance, 9)
-				: formatEther(balance);
+			const formatted = isSolanaChain(chainId) ? formatUnits(balance, 9) : formatEther(balance);
 			jsonResponse(res, 200, {
 				chainId,
 				network: chain.name,
@@ -67,9 +65,7 @@ export async function handleApiRoutes(
 		try {
 			const body = (await parseBody(req)) as Record<string, unknown>;
 
-			const chainId = resolveChainId(
-				(body.chainId ?? body.network) as string | number | undefined,
-			);
+			const chainId = resolveChainId((body.chainId ?? body.network) as string | number | undefined);
 			const chain = getChain(chainId);
 			const to = validateAddress((body.to ?? body.recipient) as string, chainId);
 			const amountStr = validateAmount((body.value ?? body.amount) as string, "value");
@@ -89,9 +85,7 @@ export async function handleApiRoutes(
 			if (!txSigner.hasPaymaster) {
 				const balance = await txSigner.getBalance(chainId);
 				if (balance < value) {
-					const formatted = isSolanaChain(chainId)
-						? formatUnits(balance, 9)
-						: formatEther(balance);
+					const formatted = isSolanaChain(chainId) ? formatUnits(balance, 9) : formatEther(balance);
 					throw new VaulxError(
 						`Have: ${formatted} ${nativeSymbol}, Need: ${amountStr} ${nativeSymbol}`,
 						"INSUFFICIENT_BALANCE",

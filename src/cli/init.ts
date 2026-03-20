@@ -68,7 +68,10 @@ export async function init(options: InitOptions = {}): Promise<void> {
 		maxPerDayRaw = options.maxPerDay ?? (isSolana ? "5000000000" : "500000000000000000");
 	} else {
 		const nativeSymbol = chain.nativeCurrency.symbol;
-		const txInput = await askWithDefault(`Max per transaction (${nativeSymbol})`, isSolana ? "1" : "0.1");
+		const txInput = await askWithDefault(
+			`Max per transaction (${nativeSymbol})`,
+			isSolana ? "1" : "0.1",
+		);
 		const dayInput = await askWithDefault(`Daily limit (${nativeSymbol})`, isSolana ? "5" : "0.5");
 		if (isSolana) {
 			maxPerTxRaw = solToLamports(txInput);
@@ -156,7 +159,10 @@ export async function init(options: InitOptions = {}): Promise<void> {
 	const policyPath = path.join(wDir, "wallet-policy.json");
 	const policyExists = fs.existsSync(policyPath);
 	if (!policyExists) {
-		fs.writeFileSync(policyPath, buildPolicyFile(maxPerTxRaw, maxPerDayRaw, chain.nativeCurrency.symbol));
+		fs.writeFileSync(
+			policyPath,
+			buildPolicyFile(maxPerTxRaw, maxPerDayRaw, chain.nativeCurrency.symbol),
+		);
 	}
 
 	// 8. Display result
