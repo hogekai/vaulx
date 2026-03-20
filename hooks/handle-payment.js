@@ -3,8 +3,10 @@
 /**
  * vaulx Elicitation Hook
  *
- * Intercepts agentPayment() elicitation requests from Claude Code
+ * Intercepts Agent Payment Protocol (APP) elicitation requests
  * and auto-pays via the vaulx HTTP server.
+ *
+ * Protocol: https://github.com/hogekai/agent-payment-protocol
  *
  * Usage in .claude/settings.json:
  * {
@@ -25,7 +27,10 @@ const WALLET_TOKEN = process.env.WALLET_TOKEN || "";
 
 // Swap this function to support a different payment protocol
 function detectPayment(input) {
-  const match = input.message?.match(/\[x-lynq-payment:(\{[^}]+\})\]/);
+  // APP standard tag (preferred)
+  let match = input.message?.match(/\[x-agent-payment:(\{[^}]+\})\]/);
+  // Legacy lynq tag (deprecated, remove in next major)
+  if (!match) match = input.message?.match(/\[x-lynq-payment:(\{[^}]+\})\]/);
   if (!match) return null;
   return JSON.parse(match[1]);
 }

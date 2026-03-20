@@ -17,7 +17,16 @@ Two transports, one process: MCP tools/resources over stdio for Claude Code, plu
 - **NonceManager resets on failure.** Tracks pending nonce in memory for rapid sends. On tx failure, resets and re-fetches from chain. (EOA mode only)
 - **HTTP binds to 127.0.0.1 only.** Never exposed externally.
 - **Hook is plain JS.** `hooks/handle-payment.js` — no build step, uses Node 18+ native fetch.
-- **agentPayment compat.** `send_transaction` accepts both `to`/`recipient` and `value`/`amount` aliases. Response includes `proof: { type: "tx_hash", value: hash }` for agentPayment passthrough.
+- **APP compat.** `send_transaction` accepts both `to`/`recipient` and `value`/`amount` aliases. Response includes `proof: { type: "tx_hash", value: hash }` for Agent Payment Protocol passthrough.
+
+## Protocol
+
+vaulx implements the Agent Payment Protocol (APP).
+See: https://github.com/hogekai/agent-payment-protocol
+
+- Discovery tag: `[x-agent-payment:{...}]` (legacy `[x-lynq-payment:{...}]` also detected)
+- Payment proof format: `{ type: "tx_hash" | "signature", value: "0x..." }`
+- Spending policy: `wallet-policy.json` conforms to APP SpendingPolicy schema
 
 ## Stack
 
@@ -109,7 +118,7 @@ src/
 │   ├── deploy.ts           — Smart account deployment
 │   └── session.ts          — Session key creation
 hooks/
-└── handle-payment.js       — Elicitation hook: detects [x-lynq-payment:{...}] → calls HTTP API
+└── handle-payment.js       — Elicitation hook: detects [x-agent-payment:{...}] → calls HTTP API
 ```
 
 ## Env vars
