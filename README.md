@@ -99,6 +99,8 @@ After `init`, fund the address shown:
 | `revoke_token` | Revoke approval (ERC20 / SPL delegate) | ✓ | ✓ |
 | `swap_token` | Swap tokens (Uniswap V3 / Jupiter) | ✓ | ✓ |
 | `sign_message` | Sign a message | ✓ | ✓ |
+| `sign_bytes` | Sign raw bytes (Ed25519) | — | ✓ |
+| `sign_and_send_raw_transaction` | Sign + submit raw transaction | — | ✓ |
 | `withdraw` | Withdraw native/tokens (full balance support) | ✓ | ✓ |
 | `get_address` | Wallet address + mode | ✓ | ✓ |
 | `get_balance` | Native + token balances | ✓ | ✓ |
@@ -134,6 +136,8 @@ Runs on `http://127.0.0.1:18420` alongside the MCP server.
 | GET | `/address` | Yes | Wallet address |
 | GET | `/balance/:chainId` | Yes | Balance |
 | POST | `/api/send-transaction` | Yes | Send transaction |
+| POST | `/api/sign-bytes` | Yes | Sign raw bytes (Solana) |
+| POST | `/api/sign-and-send-raw-transaction` | Yes | Sign + submit raw tx (Solana) |
 
 Auth: `Authorization: Bearer {WALLET_AUTH_TOKEN}`.
 
