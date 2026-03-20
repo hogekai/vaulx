@@ -1,6 +1,6 @@
 # vaulx
 
-Agent wallet MCP server. Gives Claude Code (or any MCP client) its own EVM wallet for testnet transactions. Supports EOA, browser (MetaMask), smart account (ERC-4337), and session key modes.
+Agent wallet MCP server. Gives Claude Code (or any MCP client) its own wallet for EVM and Solana chains. Supports EOA, browser (MetaMask), smart account (ERC-4337), and session key modes on EVM; env mode on Solana.
 
 (lynq: ../lynq)
 
@@ -18,6 +18,9 @@ Two transports, one process: MCP tools/resources over stdio for Claude Code, plu
 - **HTTP binds to 127.0.0.1 only.** Never exposed externally.
 - **Hook is plain JS.** `hooks/handle-payment.js` — no build step, uses Node 18+ native fetch.
 - **APP compat.** `send_transaction` accepts both `to`/`recipient` and `value`/`amount` aliases. Response includes `proof: { type: "tx_hash", value: hash }` for Agent Payment Protocol passthrough.
+- **Chain ID is string.** EVM chains use numeric strings (`"84532"`), Solana uses cluster names (`"solana-devnet"`). `isSolanaChain(chainId)` checks prefix. EVM libs get numeric IDs via `numericChainId()`.
+- **Solana tools use dynamic imports.** `@solana/web3.js` and `@solana/spl-token` are imported at call time to avoid loading when unused. Pattern: build Transaction → sign with Keypair → `connection.sendRawTransaction()` → `txLog.record()` → `trackReceipt()`.
+- **Jupiter for Solana swaps.** REST API at `https://quote-api.jup.ag/v6` — no API key. Returns VersionedTransaction to sign and send.
 
 ## Protocol
 
@@ -30,20 +33,21 @@ See: https://github.com/hogekai/agent-payment-protocol
 
 ## Stack
 
-TypeScript strict · ESM · lynq · viem · permissionless · zod
+TypeScript strict · ESM · lynq · viem · permissionless · @solana/web3.js · @solana/spl-token · zod
 
 ## Dependencies
 
-`@lynq/lynq`, `@lynq/store-sqlite`, `better-sqlite3`, `permissionless`, `viem`, `zod`
+`@lynq/lynq`, `@lynq/store-sqlite`, `better-sqlite3`, `permissionless`, `viem`, `@solana/web3.js`, `@solana/spl-token`, `bs58`, `tweetnacl`, `zod`
 
 ## Wallet Modes
 
-| Mode | WALLET_MODE | Key Required | Gas |
-|------|-------------|-------------|-----|
-| EOA | `env` | `PRIVATE_KEY` | Self-funded |
-| Browser | `browser` | MetaMask | Self-funded |
-| Smart Account | `smart-account` | `PRIVATE_KEY` + `PIMLICO_API_KEY` | Paymaster sponsored |
-| Session Key | `session-key` | `SESSION_KEY` + `SMART_ACCOUNT_ADDRESS` + `PIMLICO_API_KEY` | Paymaster sponsored |
+| Mode | WALLET_MODE | Key Required | Gas | Chains |
+|------|-------------|-------------|-----|--------|
+| EOA | `env` | `PRIVATE_KEY` | Self-funded | EVM |
+| Browser | `browser` | MetaMask | Self-funded | EVM |
+| Smart Account | `smart-account` | `PRIVATE_KEY` + `PIMLICO_API_KEY` | Paymaster sponsored | EVM |
+| Session Key | `session-key` | `SESSION_KEY` + `SMART_ACCOUNT_ADDRESS` + `PIMLICO_API_KEY` | Paymaster sponsored | EVM |
+| Solana EOA | `env` | `SOLANA_PRIVATE_KEY` | Self-funded | Solana |
 
 ## Structure
 
@@ -55,15 +59,16 @@ src/
 ├── policy.ts               — SpendingPolicy zod schema, loadPolicy()
 ├── signer/
 │   ├── types.ts            — Signer interface (mode, hasPaymaster, getAddress, sendTransaction, signMessage, getBalance)
-│   ├── env.ts              — EnvSigner: privateKeyToAccount + NonceManager
+│   ├── env.ts              — EnvSigner: privateKeyToAccount + NonceManager (EVM)
+│   ├── solana-env.ts       — SolanaEnvSigner: Keypair + SystemProgram.transfer
 │   ├── browser.ts          — BrowserSigner: MetaMask confirmation via localhost pages
 │   ├── smart-account.ts    — SmartAccountSigner: Kernel + Pimlico bundler/paymaster
 │   ├── session-key.ts      — SessionKeySigner: session key → smart account
-│   └── factory.ts          — createSignerForChain(): mode-based signer factory
+│   └── factory.ts          — createSignerForChain(): mode-based signer factory (routes Solana/EVM)
 ├── errors.ts               — VaulxError class with typed error codes
 ├── helpers/
 │   ├── execute-tx.ts       — executeTx(): policy check → send → log → result
-│   └── validate.ts         — validateAddress(), validateAmount()
+│   └── validate.ts         — validateAddress(input, chainId?), validateAmount()
 ├── guard/
 │   └── policy-guard.ts     — PolicyGuard.check(): maxPerTx, maxPerDay, maxTotal, recipient lists, token check
 ├── log/
@@ -72,17 +77,17 @@ src/
 ├── token/
 │   └── registry.ts         — TokenRegistry: resolve/list/resolveByAddress
 ├── chain/
-│   └── manager.ts          — ChainManager: multi-chain signer/client creation
+│   └── manager.ts          — ChainManager: multi-chain signer/client/connection creation
 ├── tools/
-│   ├── send-transaction.ts — MCP tool: native ETH send
-│   ├── send-token.ts       — MCP tool: ERC20 send (encodeFunctionData)
+│   ├── send-transaction.ts — MCP tool: native send (ETH/SOL)
+│   ├── send-token.ts       — MCP tool: token send (ERC20/SPL)
 │   ├── sign-message.ts     — MCP tool: message signing
-│   ├── approve-token.ts    — MCP tool: ERC20 approve (never infinite)
-│   ├── revoke-token.ts     — MCP tool: revoke ERC20 approval (approve 0)
-│   ├── swap-token.ts       — MCP tool: Uniswap V3 swap (conditional)
-│   ├── withdraw.ts         — MCP tool: withdraw native/ERC20 (full balance support)
+│   ├── approve-token.ts    — MCP tool: token approve (ERC20 approve / SPL delegate)
+│   ├── revoke-token.ts     — MCP tool: revoke approval (ERC20 / SPL delegate)
+│   ├── swap-token.ts       — MCP tool: token swap (Uniswap V3 / Jupiter)
+│   ├── withdraw.ts         — MCP tool: withdraw native/tokens (full balance support)
 │   ├── get-address.ts      — MCP tool: wallet address + mode
-│   ├── get-balance.ts      — MCP tool: native + ERC20 balances
+│   ├── get-balance.ts      — MCP tool: native + token balances
 │   ├── get-transactions.ts — MCP tool: tx history (with optional limit)
 │   └── get-spending.ts     — MCP tool: daily/total spend + remaining limits
 ├── resources/
@@ -125,9 +130,11 @@ hooks/
 
 | Variable | Required | Default |
 |----------|----------|---------|
-| `PRIVATE_KEY` | env/smart-account modes | — |
-| `DEFAULT_CHAIN_ID` | No | 84532 (Base Sepolia) |
-| `RPC_URL` | No | Public RPC |
+| `PRIVATE_KEY` | env/smart-account modes (EVM) | — |
+| `SOLANA_PRIVATE_KEY` | Solana env mode | — |
+| `DEFAULT_CHAIN_ID` | No | `84532` (Base Sepolia) |
+| `RPC_URL` | No | Public RPC (EVM) |
+| `SOLANA_RPC_URL` | No | Public RPC (Solana) |
 | `WALLET_PORT` | No | 18420 |
 | `WALLET_AUTH_TOKEN` | No | Auto-generated |
 | `WALLET_POLICY` | No | Built-in defaults |
@@ -166,7 +173,8 @@ vaulx setup                # Deploy smart account (advanced)
 
 ## Supported chains
 
-ethereum (1), base (8453), base-sepolia (84532), sepolia (11155111)
+EVM: ethereum (1), base (8453), base-sepolia (84532), sepolia (11155111)
+Solana: solana, solana-devnet
 
 ## Dev
 

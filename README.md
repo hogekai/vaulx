@@ -1,6 +1,8 @@
 # @vaulx/vaulx
 
-Agent wallet MCP server for EVM chains, implementing the [Agent Payment Protocol](https://github.com/hogekai/agent-payment-protocol). Gives Claude Code (or any MCP client) its own wallet — send ETH, check balances, auto-pay via APP-compliant elicitation hooks.
+Agent wallet MCP server implementing the [Agent Payment Protocol](https://github.com/hogekai/agent-payment-protocol). Gives Claude Code (or any MCP client) its own wallet — send ETH/SOL, swap tokens, check balances, auto-pay via APP-compliant elicitation hooks.
+
+Supports EVM chains (Ethereum, Base, Sepolia) and Solana (mainnet, devnet).
 
 ## Quick Start
 
@@ -16,12 +18,32 @@ This will:
 
 Then restart Claude Code — vaulx will auto-connect.
 
+### Solana Wallet
+
+```bash
+npx @vaulx/vaulx init --chain solana-devnet
+```
+
+Generates a Solana keypair (Ed25519) and stores it as `SOLANA_PRIVATE_KEY`.
+
+## Supported Chains
+
+| Chain | ID | Alias | Native |
+|-------|----|-------|--------|
+| Ethereum | `1` | `ethereum` | ETH |
+| Base | `8453` | `base` | ETH |
+| Base Sepolia | `84532` | `base-sepolia` | ETH |
+| Sepolia | `11155111` | `sepolia` | ETH |
+| Solana | `solana` | `solana` | SOL |
+| Solana Devnet | `solana-devnet` | `solana-devnet` | SOL |
+
 ## Multi-Wallet
 
 Create and manage multiple isolated wallets:
 
 ```bash
 npx @vaulx/vaulx init --name defi       # Create named wallet
+npx @vaulx/vaulx init --name sol --chain solana-devnet  # Solana wallet
 npx @vaulx/vaulx list                   # List all wallets
 npx @vaulx/vaulx switch defi            # Switch active wallet
 npx @vaulx/vaulx active                 # Show active wallet
@@ -46,8 +68,6 @@ npx @vaulx/vaulx
 #   ...
 ```
 
-`switch` and `delete` also show a wallet picker when no name is given.
-
 ### MCP Wallet Management
 
 Manage wallets directly from Claude Code — no terminal needed:
@@ -58,32 +78,35 @@ Manage wallets directly from Claude Code — no terminal needed:
 | `switch_wallet` | Hot-swap active wallet (no server restart) |
 | `create_wallet` | Generate a new wallet and optionally switch to it |
 
-`switch_wallet` replaces the signer at runtime — all subsequent operations use the new wallet immediately.
-
 ## Fund Your Wallet
 
 After `init`, fund the address shown:
 
+**EVM Testnets:**
 - **Base Sepolia**: https://www.alchemy.com/faucets/base-sepolia
 - **Sepolia**: https://www.alchemy.com/faucets/ethereum-sepolia
 
+**Solana Devnet:**
+- https://faucet.solana.com
+
 ## MCP Tools
 
-| Tool | Description |
-|------|-------------|
-| `send_transaction` | Send native ETH |
-| `send_token` | Send ERC20 tokens |
-| `approve_token` | Approve ERC20 spending (never infinite) |
-| `revoke_token` | Revoke ERC20 approval |
-| `sign_message` | Sign a message |
-| `withdraw` | Withdraw native/ERC20 (full balance support) |
-| `get_address` | Wallet address + mode |
-| `get_balance` | Native + ERC20 balances |
-| `get_transactions` | Transaction history |
-| `get_spending` | Daily/total spend + remaining limits |
-| `list_wallets` | List all wallets with active status |
-| `switch_wallet` | Hot-swap active wallet (no restart) |
-| `create_wallet` | Generate new wallet |
+| Tool | Description | EVM | Solana |
+|------|-------------|-----|--------|
+| `send_transaction` | Send native token (ETH/SOL) | ✓ | ✓ |
+| `send_token` | Send tokens (ERC20/SPL) | ✓ | ✓ |
+| `approve_token` | Approve spending (ERC20 approve / SPL delegate) | ✓ | ✓ |
+| `revoke_token` | Revoke approval (ERC20 / SPL delegate) | ✓ | ✓ |
+| `swap_token` | Swap tokens (Uniswap V3 / Jupiter) | ✓ | ✓ |
+| `sign_message` | Sign a message | ✓ | ✓ |
+| `withdraw` | Withdraw native/tokens (full balance support) | ✓ | ✓ |
+| `get_address` | Wallet address + mode | ✓ | ✓ |
+| `get_balance` | Native + token balances | ✓ | ✓ |
+| `get_transactions` | Transaction history | ✓ | ✓ |
+| `get_spending` | Daily/total spend + remaining limits | ✓ | ✓ |
+| `list_wallets` | List all wallets with active status | ✓ | ✓ |
+| `switch_wallet` | Hot-swap active wallet (no restart) | ✓ | ✓ |
+| `create_wallet` | Generate new wallet | ✓ | ✓ |
 
 ## MCP Resources
 
@@ -97,7 +120,7 @@ After `init`, fund the address shown:
 | `wallet://spending` | Spend limits + usage |
 | `wallet://policy` | Current policy config |
 | `wallet://chains` | Supported chains |
-| `wallet://allowance` | ERC20 allowances |
+| `wallet://allowance` | Token allowances |
 | `wallet://balances` | All balances |
 
 ## HTTP API
@@ -120,25 +143,34 @@ Conforms to the [Agent Payment Protocol Spending Policy](https://github.com/hoge
 
 | Field | Description |
 |-------|-------------|
-| `maxPerTx` | Max wei per transaction |
+| `maxPerTx` | Max per transaction (smallest unit: wei/lamports) |
 | `maxPerDay` | Daily spend limit |
 | `maxTotal` | Lifetime spend limit |
-| `allowedTokens` | Allowed token symbols |
+| `allowedTokens` | Allowed token symbols (e.g. `["ETH"]`, `["SOL", "USDC"]`) |
 | `allowedRecipients` | Whitelist (empty = no restriction) |
 | `blockedRecipients` | Blacklist |
-| `allowedOperations` | `send`, `send_token`, `sign`, `withdraw` |
+| `allowedOperations` | `send`, `send_token`, `sign`, `withdraw`, `approve`, `swap` |
 | `expiresAt` | Policy expiry (ISO 8601) |
+| `chainOverrides` | Per-chain policy overrides (see below) |
 
-Default: 0.1 ETH per tx, 0.5 ETH per day.
+Default: 0.1 ETH per tx, 0.5 ETH per day (EVM). Solana init defaults to 1 SOL per tx, 5 SOL per day.
 
-## Supported Chains
+### Chain-specific Policy Overrides
 
-| Chain | ID | Alias |
-|-------|----|-------|
-| Ethereum | 1 | `ethereum` |
-| Base | 8453 | `base` |
-| Base Sepolia | 84532 | `base-sepolia` |
-| Sepolia | 11155111 | `sepolia` |
+Use `chainOverrides` to set different limits per chain:
+
+```json
+{
+  "maxPerTx": "100000000000000000",
+  "allowedTokens": ["ETH"],
+  "chainOverrides": {
+    "solana-devnet": {
+      "maxPerTx": "1000000000",
+      "allowedTokens": ["SOL", "USDC"]
+    }
+  }
+}
+```
 
 ## Advanced: Smart Account Mode
 
@@ -146,7 +178,7 @@ Default: 0.1 ETH per tx, 0.5 ETH per day.
 npx @vaulx/vaulx setup
 ```
 
-Deploys an ERC-4337 smart account with Pimlico paymaster (gas-sponsored). Requires `PIMLICO_API_KEY`.
+Deploys an ERC-4337 smart account with Pimlico paymaster (gas-sponsored). Requires `PIMLICO_API_KEY`. EVM only.
 
 ## Auto-Payment Hook
 
