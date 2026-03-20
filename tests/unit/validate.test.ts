@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { VaulxError } from "../../src/errors.js";
-import { validateAddress, validateAmount } from "../../src/helpers/validate.js";
+import { parseTokenUnits, validateAddress, validateAmount } from "../../src/helpers/validate.js";
 
 describe("validateAddress", () => {
 	test("valid address", () => {
@@ -79,5 +79,54 @@ describe("validateAmount", () => {
 		} catch (e) {
 			expect((e as VaulxError).message).toContain("value");
 		}
+	});
+});
+
+describe("parseTokenUnits", () => {
+	test("integer", () => {
+		expect(parseTokenUnits("1", 9)).toBe(1000000000n);
+	});
+
+	test("decimal", () => {
+		expect(parseTokenUnits("1.5", 9)).toBe(1500000000n);
+	});
+
+	test("small decimal", () => {
+		expect(parseTokenUnits("0.001", 9)).toBe(1000000n);
+	});
+
+	test("high precision — no float loss", () => {
+		// float: 1.123456789 * 1e9 = 1123456788.9999998 → loses precision
+		// string: should be exact
+		expect(parseTokenUnits("1.123456789", 9)).toBe(1123456789n);
+	});
+
+	test("truncates excess decimals", () => {
+		// 6 decimal token, input has 9 decimals → truncate to 6
+		expect(parseTokenUnits("1.123456789", 6)).toBe(1123456n);
+	});
+
+	test("pads short decimals", () => {
+		expect(parseTokenUnits("1.5", 18)).toBe(1500000000000000000n);
+	});
+
+	test("whole number with 18 decimals", () => {
+		expect(parseTokenUnits("100", 18)).toBe(100000000000000000000n);
+	});
+
+	test("zero decimals", () => {
+		expect(parseTokenUnits("42", 0)).toBe(42n);
+	});
+
+	test("invalid input throws", () => {
+		expect(() => parseTokenUnits("abc", 9)).toThrow(VaulxError);
+	});
+
+	test("negative input throws", () => {
+		expect(() => parseTokenUnits("-1", 9)).toThrow(VaulxError);
+	});
+
+	test("empty input throws", () => {
+		expect(() => parseTokenUnits("", 9)).toThrow(VaulxError);
 	});
 });

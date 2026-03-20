@@ -83,6 +83,7 @@ export function registerSendToken(server: MCPServer, ctx: SendTokenCtx) {
 						operation: "send_token",
 						txParams: { to: token.address, value: 0n, chainId, data },
 						token: token.symbol,
+						policyExtra: { value: rawAmount, to },
 					},
 					{
 						signer,
@@ -125,7 +126,8 @@ async function sendSplToken(
 	const fromPubkey = new PublicKey(fromAddress);
 	const toPubkey = new PublicKey(to);
 	const mintPubkey = new PublicKey(token.address);
-	const rawAmount = BigInt(Math.round(parseFloat(tokenAmount) * 10 ** token.decimals));
+	const { parseTokenUnits } = await import("../helpers/validate.js");
+	const rawAmount = parseTokenUnits(tokenAmount, token.decimals);
 
 	// Get or create ATAs
 	const fromAta = await getAssociatedTokenAddress(mintPubkey, fromPubkey);
@@ -140,6 +142,16 @@ async function sendSplToken(
 	});
 	if (!check.ok) {
 		throw new VaulxError(check.reason, "POLICY_VIOLATION");
+	}
+
+	// Duplicate check
+	const dup = await ctx.txLog.isDuplicate({
+		to,
+		value: rawAmount.toString(),
+		chainId,
+	});
+	if (dup) {
+		throw new VaulxError("Duplicate transaction detected (same params within 10s)", "TX_FAILED");
 	}
 
 	// Build transaction: create recipient ATA if needed, then transfer

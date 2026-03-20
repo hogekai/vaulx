@@ -47,6 +47,28 @@ describe("withdraw tool", () => {
 		expect(result.isError).toBeTruthy();
 	});
 
+	test("omitting amount and fullBalance → validation error", async () => {
+		ctx = await setupToolTest(registerWithdraw);
+		const result = await ctx.client.callTool("withdraw", {
+			to: VALID_ADDR,
+		});
+		expect(result.isError).toBeTruthy();
+		const text = (result.content as any[])[0]?.text ?? "";
+		expect(text).toContain("fullBalance");
+	});
+
+	test("fullBalance: true withdraws without amount", async () => {
+		ctx = await setupToolTest(registerWithdraw);
+		const result = await ctx.client.callTool("withdraw", {
+			to: VALID_ADDR,
+			fullBalance: true,
+		});
+		expect(result.isError).toBeFalsy();
+		const text = (result.content as any[])[0]?.text;
+		const data = JSON.parse(text);
+		expect(data.hash).toMatch(/^0x/);
+	});
+
 	test("withdraw operation not allowed → POLICY_VIOLATION", async () => {
 		ctx = await setupToolTest(registerWithdraw, {
 			policy: { allowedOperations: ["send"] },

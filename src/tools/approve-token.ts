@@ -58,9 +58,12 @@ export function registerApproveToken(server: MCPServer, ctx: ApproveTokenCtx) {
 				// Determine amount — never infinite
 				let rawAmount: bigint;
 				if (args.amount) {
-					rawAmount = isSolanaChain(chainId)
-						? BigInt(Math.round(parseFloat(args.amount) * 10 ** token.decimals))
-						: parseUnits(args.amount, token.decimals);
+					if (isSolanaChain(chainId)) {
+						const { parseTokenUnits } = await import("../helpers/validate.js");
+						rawAmount = parseTokenUnits(args.amount, token.decimals);
+					} else {
+						rawAmount = parseUnits(args.amount, token.decimals);
+					}
 				} else if (ctx.policyGuard.policy.maxApproveAmount) {
 					rawAmount = BigInt(ctx.policyGuard.policy.maxApproveAmount);
 				} else {

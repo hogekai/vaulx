@@ -1,5 +1,4 @@
 import type { MCPServer } from "@lynq/lynq";
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { formatEther, formatUnits, parseEther } from "viem";
 import { z } from "zod";
 import type { ChainManager } from "../chain/manager.js";
@@ -50,7 +49,8 @@ export function registerSendTransaction(server: MCPServer, ctx: SendTransactionC
 
 				let value: bigint;
 				if (isSolanaChain(chainId)) {
-					value = BigInt(Math.round(parseFloat(amountStr) * LAMPORTS_PER_SOL));
+					const { parseTokenUnits } = await import("../helpers/validate.js");
+					value = parseTokenUnits(amountStr, 9);
 				} else {
 					value = parseEther(amountStr);
 				}

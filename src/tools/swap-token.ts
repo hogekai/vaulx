@@ -118,7 +118,7 @@ async function swapEvmUniswap(
 		? parseEther(args.amountIn)
 		: parseUnits(args.amountIn, tokenInInfo.decimals);
 
-	// Auto-approve if needed
+	// Auto-approve if needed — routed through executeTx for policy + logging
 	if (!isEthIn) {
 		const allowance = (await pub.readContract({
 			address: tokenInAddress!,
@@ -128,49 +128,46 @@ async function swapEvmUniswap(
 		})) as bigint;
 
 		if (allowance < amountIn) {
-			if (!ctx.policyGuard.policy.allowedOperations.includes("approve")) {
-				throw new VaulxError(
-					'Swap requires token approval, but "approve" is not in allowedOperations.',
-					"POLICY_VIOLATION",
-				);
-			}
 			const approveData = encodeFunctionData({
 				abi: erc20Abi,
 				functionName: "approve",
 				args: [routerAddress, amountIn],
 			});
-			await signer.sendTransaction({
-				to: tokenInAddress,
-				value: 0n,
-				chainId,
-				data: approveData,
-			});
+			await executeTx(
+				{
+					operation: "approve",
+					txParams: { to: tokenInAddress, value: 0n, chainId, data: approveData },
+					token: tokenInInfo.symbol,
+					policyExtra: { value: amountIn },
+				},
+				{
+					signer,
+					policyGuard: ctx.policyGuard,
+					txLog: ctx.txLog,
+					chainManager: ctx.chainManager,
+				},
+			);
 		}
 	}
 
-	// Quote
-	let amountOutMinimum = 0n;
-	try {
-		const quoteResult = await pub.simulateContract({
-			address: quoterAddress,
-			abi: quoterAbi,
-			functionName: "quoteExactInputSingle",
-			args: [
-				{
-					tokenIn: tokenInAddress,
-					tokenOut: tokenOutAddress,
-					amountIn,
-					fee: 3000,
-					sqrtPriceLimitX96: 0n,
-				},
-			],
-		});
-		const quotedAmount = (quoteResult.result as readonly bigint[])[0];
-		amountOutMinimum =
-			quotedAmount - (quotedAmount * BigInt(Math.floor(args.slippage * 100))) / 10000n;
-	} catch {
-		console.error("[vaulx] Quote failed, using amountOutMinimum=0");
-	}
+	// Quote — abort if it fails (never swap with amountOutMinimum=0)
+	const quoteResult = await pub.simulateContract({
+		address: quoterAddress,
+		abi: quoterAbi,
+		functionName: "quoteExactInputSingle",
+		args: [
+			{
+				tokenIn: tokenInAddress,
+				tokenOut: tokenOutAddress,
+				amountIn,
+				fee: 3000,
+				sqrtPriceLimitX96: 0n,
+			},
+		],
+	});
+	const quotedAmount = (quoteResult.result as readonly bigint[])[0];
+	const amountOutMinimum =
+		quotedAmount - (quotedAmount * BigInt(Math.floor(args.slippage * 100))) / 10000n;
 
 	const swapData = encodeExactInputSingle({
 		tokenIn: tokenInAddress!,
@@ -247,7 +244,8 @@ async function swapSolanaJupiter(
 		? { decimals: 9, symbol: "SOL" }
 		: ctx.tokenRegistry.resolve(chainId, args.tokenOut)!;
 
-	const amountIn = BigInt(Math.round(parseFloat(args.amountIn) * 10 ** tokenInInfo.decimals));
+	const { parseTokenUnits } = await import("../helpers/validate.js");
+	const amountIn = parseTokenUnits(args.amountIn, tokenInInfo.decimals);
 
 	// Policy check
 	const check = await ctx.policyGuard.check("swap", {
@@ -258,6 +256,16 @@ async function swapSolanaJupiter(
 	});
 	if (!check.ok) {
 		throw new VaulxError(check.reason, "POLICY_VIOLATION");
+	}
+
+	// Duplicate check
+	const dup = await ctx.txLog.isDuplicate({
+		to: "jupiter",
+		value: amountIn.toString(),
+		chainId,
+	});
+	if (dup) {
+		throw new VaulxError("Duplicate swap detected (same params within 10s)", "TX_FAILED");
 	}
 
 	// Jupiter Quote

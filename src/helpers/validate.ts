@@ -17,6 +17,21 @@ export function validateAddress(input: string, chainId?: string): string {
 	return input;
 }
 
+/**
+ * Parse a decimal string into a bigint with the given number of decimals.
+ * Uses string manipulation to avoid float precision loss.
+ * e.g. parseTokenUnits("1.5", 9) → 1500000000n
+ */
+export function parseTokenUnits(amount: string, decimals: number): bigint {
+	const trimmed = amount.trim();
+	if (!/^\d+(\.\d+)?$/.test(trimmed)) {
+		throw new VaulxError(`Invalid amount: ${amount}`, "CONFIG_ERROR", { value: amount });
+	}
+	const [whole, frac = ""] = trimmed.split(".");
+	const padded = frac.padEnd(decimals, "0").slice(0, decimals);
+	return BigInt(whole + padded);
+}
+
 /** Validate numeric string is non-empty, non-negative, non-zero. */
 export function validateAmount(input: string, label = "amount"): string {
 	if (!input || input.trim() === "") {

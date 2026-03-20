@@ -28,7 +28,33 @@ export interface ExecuteTxResult {
 	proof: { type: "tx_hash"; value: string };
 }
 
+/**
+ * Simple async mutex.
+ * Node.js is single-threaded but policy check → send → log spans multiple
+ * awaits, allowing interleaving. This lock serializes the critical section
+ * so concurrent calls cannot bypass daily/total spend limits.
+ */
+let _txLock: Promise<void> = Promise.resolve();
+
 export async function executeTx(
+	input: ExecuteTxInput,
+	deps: ExecuteTxDeps,
+): Promise<ExecuteTxResult> {
+	const prev = _txLock;
+	let unlock!: () => void;
+	_txLock = new Promise((r) => {
+		unlock = r;
+	});
+	await prev;
+
+	try {
+		return await _executeTxInner(input, deps);
+	} finally {
+		unlock();
+	}
+}
+
+async function _executeTxInner(
 	input: ExecuteTxInput,
 	deps: ExecuteTxDeps,
 ): Promise<ExecuteTxResult> {

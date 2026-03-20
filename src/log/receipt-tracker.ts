@@ -7,12 +7,16 @@ interface ReceiptTrackerDeps {
 	txLog: TxLog;
 }
 
+const MAX_RETRIES = 3;
+const RETRY_DELAYS = [5_000, 15_000, 30_000];
+
 /**
- * Fire-and-forget receipt polling. Callers should NOT await this.
+ * Fire-and-forget receipt polling with retry.
+ * Callers should NOT await this.
  * Updates TxLog status to "confirmed" or "failed" once receipt is available.
  */
 export function trackReceipt(hash: string, chainId: string, deps: ReceiptTrackerDeps): void {
-	const run = async () => {
+	const attempt = async (retryCount: number): Promise<void> => {
 		try {
 			if (isSolanaChain(chainId)) {
 				const connection = deps.chainManager.getConnection(chainId);
@@ -32,9 +36,19 @@ export function trackReceipt(hash: string, chainId: string, deps: ReceiptTracker
 				console.error(`[vaulx] Tx ${hash.slice(0, 10)}... → ${status}`);
 			}
 		} catch {
-			console.error(`[vaulx] Tx ${hash.slice(0, 10)}... receipt tracking failed`);
+			if (retryCount < MAX_RETRIES) {
+				const delay = RETRY_DELAYS[retryCount];
+				console.error(
+					`[vaulx] Tx ${hash.slice(0, 10)}... receipt tracking failed, retry ${retryCount + 1}/${MAX_RETRIES} in ${delay / 1000}s`,
+				);
+				await new Promise((r) => setTimeout(r, delay));
+				return attempt(retryCount + 1);
+			}
+			console.error(
+				`[vaulx] Tx ${hash.slice(0, 10)}... receipt tracking failed after ${MAX_RETRIES} retries`,
+			);
 		}
 	};
 
-	run().catch(() => {});
+	attempt(0).catch(() => {});
 }

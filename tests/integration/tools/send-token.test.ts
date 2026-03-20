@@ -54,4 +54,20 @@ describe("send_token tool", () => {
 		});
 		expect(result.isError).toBeFalsy();
 	});
+
+	test("token amount enforced by policy (not raw tx value)", async () => {
+		// maxPerTx = 5 USDC (in 6 decimals = 5000000)
+		// Sending 10 USDC should be rejected even though on-chain ETH value is 0
+		ctx = await setupToolTest(registerSendToken, {
+			policy: { maxPerTx: "5000000" },
+		});
+		const result = await ctx.client.callTool("send_token", {
+			to: VALID_ADDR,
+			value: "10",
+			token: "USDC",
+		});
+		expect(result.isError).toBeTruthy();
+		const text = (result.content as any[])[0]?.text ?? "";
+		expect(text).toContain("POLICY_VIOLATION");
+	});
 });

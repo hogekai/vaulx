@@ -30,17 +30,27 @@ export function registerWithdraw(server: MCPServer, ctx: WithdrawCtx) {
 		"withdraw",
 		{
 			description:
-				"Withdraw tokens from the agent wallet. Defaults to full balance if amount is omitted.",
+				"Withdraw tokens from the agent wallet. Specify amount, or set fullBalance=true to withdraw everything.",
 			input: z.object({
 				to: z.string().optional().describe("Recipient address. Defaults to WITHDRAW_TO env var."),
 				token: z.string().optional().describe("Token symbol (defaults to chain native)"),
-				amount: z.string().optional().describe("Amount to withdraw. Omit for full balance."),
+				amount: z.string().optional().describe("Amount to withdraw"),
+				fullBalance: z
+					.boolean()
+					.optional()
+					.describe("Set to true to withdraw entire balance. Required when amount is omitted."),
 				chainId: z.union([z.string(), z.number()]).optional().describe("Chain ID or network alias"),
 				network: z.string().optional().describe("Network alias (e.g. 'base-sepolia')"),
 			}),
 		},
 		async (args, c) => {
 			try {
+				if (!args.amount && !args.fullBalance) {
+					return c.error(
+						"[VALIDATION] Either 'amount' or 'fullBalance: true' is required. " +
+							"To withdraw the entire balance, set fullBalance to true.",
+					);
+				}
 				const chainId = resolveChainId(args.chainId ?? args.network);
 				const chain = getChain(chainId);
 				const to = validateAddress(args.to ?? WITHDRAW_TO ?? "", chainId);
@@ -85,7 +95,12 @@ async function withdrawNative(
 
 	let value: bigint;
 	if (amount) {
-		value = isSolana ? BigInt(Math.round(parseFloat(amount) * 10 ** decimals)) : parseEther(amount);
+		if (isSolana) {
+			const { parseTokenUnits } = await import("../helpers/validate.js");
+			value = parseTokenUnits(amount, decimals);
+		} else {
+			value = parseEther(amount);
+		}
 		if (value > balance) {
 			throw new VaulxError(
 				`Insufficient balance. Have: ${formatBalance(balance)} ${symbol}, Need: ${amount} ${symbol}`,
@@ -188,6 +203,7 @@ async function withdrawEvmToken(
 			operation: "withdraw",
 			txParams: { to: token.address, value: 0n, chainId, data },
 			token: token.symbol,
+			policyExtra: { value: rawAmount, to },
 		},
 		{ signer, policyGuard: ctx.policyGuard, txLog: ctx.txLog, chainManager: ctx.chainManager },
 	);
