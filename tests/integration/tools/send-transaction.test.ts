@@ -22,7 +22,7 @@ describe("send_transaction tool", () => {
 		const data = JSON.parse(text);
 		expect(data.hash).toMatch(/^0x/);
 		expect(data.proof.type).toBe("tx_hash");
-		expect(data.chainId).toBe(84532);
+		expect(data.chainId).toBe("84532");
 	});
 
 	test("agentPayment aliases: 'recipient' and 'amount'", async () => {
