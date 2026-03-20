@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.0] - 2026-03-20
+
+### Added
+- MCP wallet management tools: `list_wallets`, `switch_wallet`, `create_wallet` — manage wallets directly from Claude Code
+- Interactive CLI menu when running `vaulx` without arguments
+
+### Changed
+- Adopt Agent Payment Protocol (APP): discovery tag changed from `x-lynq-payment` to `x-agent-payment` (legacy tag still detected for backward compatibility)
+- Docs updated to reference APP spec throughout (README, CLAUDE.md)
+
 ## [0.5.2] - 2026-03-18
 
 ### Changed
