@@ -130,18 +130,6 @@ export async function loadAllFromKeychain(
 ): Promise<{ evm: string | null; solana: string | null }> {
 	const evm = await loadFromKeychain(`${walletName}-evm`);
 	const solana = await loadFromKeychain(`${walletName}-solana`);
-
-	// Legacy fallback: single key stored under just the wallet name
-	if (!evm && !solana) {
-		const legacy = await loadFromKeychain(walletName);
-		if (legacy) {
-			if (legacy.startsWith("0x")) {
-				return { evm: legacy, solana: null };
-			}
-			return { evm: null, solana: legacy };
-		}
-	}
-
 	return { evm, solana };
 }
 
