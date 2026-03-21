@@ -292,12 +292,12 @@ WALLET_DB=${path.join(opts.wDir, "vaulx.db")}
 `;
 }
 
-function buildPolicyFile(maxPerTx: string, maxPerDay: string, nativeSymbol: string): string {
+function buildPolicyFile(maxPerTx: string, maxPerDay: string, _nativeSymbol: string): string {
 	return `${JSON.stringify(
 		{
 			maxPerTx,
 			maxPerDay,
-			allowedTokens: [nativeSymbol],
+			allowedTokens: ["ETH", "SOL"],
 			allowedOperations: ["send", "send_token", "sign", "withdraw"],
 			allowedRecipients: [],
 			blockedRecipients: [],
