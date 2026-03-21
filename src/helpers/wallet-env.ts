@@ -24,24 +24,29 @@ export function loadWalletEnv(walletDir: string): void {
 }
 
 /**
- * Ensure PRIVATE_KEY is available.
+ * Ensure private keys are available (EVM and/or Solana).
  * If not in process.env after .env load, try OS keychain.
  */
 export async function ensurePrivateKey(walletName: string): Promise<void> {
-	if (process.env.PRIVATE_KEY) return;
 	if (process.env.WALLET_MODE === "browser") return;
 
+	// Already have both keys
+	if (process.env.PRIVATE_KEY && process.env.SOLANA_PRIVATE_KEY) return;
+
 	try {
-		const { loadFromKeychain } = await import("../cli/keychain.js");
-		const key = await loadFromKeychain(walletName);
-		if (key) {
-			process.env.PRIVATE_KEY = key;
+		const { loadAllFromKeychain } = await import("../cli/keychain.js");
+		const keys = await loadAllFromKeychain(walletName);
+		if (keys.evm && !process.env.PRIVATE_KEY) {
+			process.env.PRIVATE_KEY = keys.evm;
+		}
+		if (keys.solana && !process.env.SOLANA_PRIVATE_KEY) {
+			process.env.SOLANA_PRIVATE_KEY = keys.solana;
 		}
 	} catch {
 		// keychain unavailable
 	}
 
-	if (!process.env.PRIVATE_KEY && process.env.WALLET_MODE !== "browser") {
-		throw new Error(`No PRIVATE_KEY for wallet "${walletName}"`);
+	if (!process.env.PRIVATE_KEY && !process.env.SOLANA_PRIVATE_KEY) {
+		throw new Error(`No keys found for wallet "${walletName}"`);
 	}
 }

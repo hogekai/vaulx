@@ -172,8 +172,11 @@ export function getSolanaPrivateKey() {
 export function validateConfig(): void {
 	const errors: string[] = [];
 
-	if ((WALLET_MODE === "env" || WALLET_MODE === "smart-account") && !PRIVATE_KEY) {
-		errors.push(`PRIVATE_KEY is required for ${WALLET_MODE} mode`);
+	if (WALLET_MODE === "env" && !PRIVATE_KEY && !process.env.SOLANA_PRIVATE_KEY) {
+		errors.push("At least one of PRIVATE_KEY or SOLANA_PRIVATE_KEY is required for env mode");
+	}
+	if (WALLET_MODE === "smart-account" && !PRIVATE_KEY) {
+		errors.push("PRIVATE_KEY is required for smart-account mode");
 	}
 	if ((WALLET_MODE === "smart-account" || WALLET_MODE === "session-key") && !PIMLICO_API_KEY) {
 		errors.push(`PIMLICO_API_KEY is required for ${WALLET_MODE} mode`);

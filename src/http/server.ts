@@ -4,7 +4,7 @@ import type { WalletContext } from "./routes.js";
 import { handleRequest } from "./routes.js";
 
 export function startHttpServer(ctx: WalletContext): Promise<void> {
-	return new Promise((resolve, reject) => {
+	return new Promise((resolve) => {
 		const httpServer = createServer((req, res) => {
 			handleRequest(req, res, ctx).catch((err) => {
 				res.writeHead(500, { "Content-Type": "application/json" });
@@ -12,7 +12,17 @@ export function startHttpServer(ctx: WalletContext): Promise<void> {
 			});
 		});
 
-		httpServer.on("error", reject);
+		httpServer.on("error", (err: NodeJS.ErrnoException) => {
+			if (err.code === "EADDRINUSE") {
+				console.error(
+					`[vaulx] Port ${WALLET_PORT} already in use — another vaulx instance is running. Skipping HTTP server.`,
+				);
+				resolve();
+			} else {
+				// Non-port errors are still fatal
+				throw err;
+			}
+		});
 
 		httpServer.listen(WALLET_PORT, "127.0.0.1", () => {
 			console.error(`[vaulx] HTTP server listening on http://127.0.0.1:${WALLET_PORT}`);

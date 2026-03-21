@@ -42,7 +42,7 @@ export function createSolanaEnvSigner(chainId: string): Signer {
 		},
 
 		async signMessage(message: string) {
-			const nacl = await import("tweetnacl");
+			const nacl = (await import("tweetnacl")).default;
 			const encoded = new TextEncoder().encode(message);
 			const signature = nacl.sign.detached(encoded, keypair.secretKey);
 			return bs58.encode(signature);
@@ -53,7 +53,7 @@ export function createSolanaEnvSigner(chainId: string): Signer {
 		},
 
 		async signRawBytes(message: Uint8Array): Promise<Uint8Array> {
-			const nacl = await import("tweetnacl");
+			const nacl = (await import("tweetnacl")).default;
 			return nacl.sign.detached(message, keypair.secretKey);
 		},
 

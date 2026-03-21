@@ -42,21 +42,20 @@ if (envFile) {
 	}
 }
 
-// Keychain fallback: if no PRIVATE_KEY after .env load, try OS keychain
-if (!process.env.PRIVATE_KEY && process.env.WALLET_MODE !== "browser") {
+// Keychain fallback: load missing keys from OS keychain
+if (process.env.WALLET_MODE !== "browser" && (!process.env.PRIVATE_KEY || !process.env.SOLANA_PRIVATE_KEY)) {
 	const walletName = process.env.VAULX_WALLET_NAME ?? "default";
 	try {
-		const { loadFromKeychain } = await import("./cli/keychain.js");
-		const key = await loadFromKeychain(walletName);
-		if (key) {
-			process.env.PRIVATE_KEY = key;
-			// Solana chains use SOLANA_PRIVATE_KEY — set it from the same keychain key
-			if (!process.env.SOLANA_PRIVATE_KEY) {
-				process.env.SOLANA_PRIVATE_KEY = key;
-			}
+		const { loadAllFromKeychain } = await import("./cli/keychain.js");
+		const keys = await loadAllFromKeychain(walletName);
+		if (keys.evm && !process.env.PRIVATE_KEY) {
+			process.env.PRIVATE_KEY = keys.evm;
 		}
-	} catch {
-		// Keychain module not available or failed — let index.ts handle missing key
+		if (keys.solana && !process.env.SOLANA_PRIVATE_KEY) {
+			process.env.SOLANA_PRIVATE_KEY = keys.solana;
+		}
+	} catch (e) {
+		console.error(`[vaulx] Keychain fallback failed: ${e instanceof Error ? e.message : e}`);
 	}
 }
 

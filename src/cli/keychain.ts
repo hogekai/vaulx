@@ -109,6 +109,43 @@ export async function deleteFromKeychain(walletName: string): Promise<void> {
 }
 
 /**
+ * Save both EVM and Solana keys to OS keychain under `{walletName}-evm` and `{walletName}-solana`.
+ */
+export async function saveAllToKeychain(
+	walletName: string,
+	evmKey: string,
+	solanaKey: string,
+): Promise<boolean> {
+	const evmOk = await saveToKeychain(`${walletName}-evm`, evmKey);
+	const solOk = await saveToKeychain(`${walletName}-solana`, solanaKey);
+	return evmOk && solOk;
+}
+
+/**
+ * Load both EVM and Solana keys from OS keychain.
+ * Falls back to legacy single-key entry if new-format entries don't exist.
+ */
+export async function loadAllFromKeychain(
+	walletName: string,
+): Promise<{ evm: string | null; solana: string | null }> {
+	const evm = await loadFromKeychain(`${walletName}-evm`);
+	const solana = await loadFromKeychain(`${walletName}-solana`);
+
+	// Legacy fallback: single key stored under just the wallet name
+	if (!evm && !solana) {
+		const legacy = await loadFromKeychain(walletName);
+		if (legacy) {
+			if (legacy.startsWith("0x")) {
+				return { evm: legacy, solana: null };
+			}
+			return { evm: null, solana: legacy };
+		}
+	}
+
+	return { evm, solana };
+}
+
+/**
  * Check if OS keychain is available.
  */
 export function isKeychainAvailable(): boolean {
