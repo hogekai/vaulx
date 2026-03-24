@@ -11,20 +11,14 @@ npx @vaulx/vaulx init
 ```
 
 This will:
-1. Generate a new wallet (private key stored in OS keychain or `~/.vaulx/wallets/default/.env`)
+1. Generate both EVM (secp256k1) and Solana (Ed25519) keys (stored in OS keychain or `~/.vaulx/wallets/default/.env`)
 2. Create a spending policy (`~/.vaulx/wallets/default/wallet-policy.json`)
 3. Register the MCP server in `~/.mcp.json` (no secrets — only the `.env` path)
 4. Register the auto-payment hook in `~/.claude/settings.json`
 
+Every wallet holds both an EVM and Solana address — use the same wallet on any supported chain.
+
 Then restart Claude Code — vaulx will auto-connect.
-
-### Solana Wallet
-
-```bash
-npx @vaulx/vaulx init --chain solana-devnet
-```
-
-Generates a Solana keypair (Ed25519) and stores it as `SOLANA_PRIVATE_KEY`.
 
 ## Supported Chains
 
@@ -43,7 +37,6 @@ Create and manage multiple isolated wallets:
 
 ```bash
 npx @vaulx/vaulx init --name defi       # Create named wallet
-npx @vaulx/vaulx init --name sol --chain solana-devnet  # Solana wallet
 npx @vaulx/vaulx list                   # List all wallets
 npx @vaulx/vaulx switch defi            # Switch active wallet
 npx @vaulx/vaulx active                 # Show active wallet
@@ -74,9 +67,9 @@ Manage wallets directly from Claude Code — no terminal needed:
 
 | Tool | Description |
 |------|-------------|
-| `list_wallets` | List all wallets with addresses and active status |
+| `list_wallets` | List all wallets with EVM/Solana addresses and active status |
 | `switch_wallet` | Hot-swap active wallet (no server restart) |
-| `create_wallet` | Generate a new wallet and optionally switch to it |
+| `create_wallet` | Generate a new wallet (both EVM + Solana) and optionally switch to it |
 
 ## Fund Your Wallet
 
@@ -157,7 +150,7 @@ Conforms to the [Agent Payment Protocol Spending Policy](https://github.com/agen
 | `expiresAt` | Policy expiry (ISO 8601) |
 | `chainOverrides` | Per-chain policy overrides (see below) |
 
-Default: 0.1 ETH per tx, 0.5 ETH per day (EVM). Solana init defaults to 1 SOL per tx, 5 SOL per day.
+Default: 0.1 ETH per tx, 0.5 ETH per day (EVM). Solana defaults to 1 SOL per tx, 5 SOL per day. New wallets allow both ETH and SOL by default.
 
 ### Chain-specific Policy Overrides
 
@@ -194,7 +187,7 @@ Compatible with any MCP server that issues APP-compliant payment requests, inclu
 
 ## Security
 
-- Private key is stored in OS keychain (macOS Keychain / Linux libsecret) by default
+- Private keys (EVM + Solana) are stored in OS keychain (macOS Keychain / Linux libsecret) by default
 - Falls back to `~/.vaulx/wallets/{name}/.env` (chmod 600) when keychain is unavailable
 - `~/.mcp.json` contains the file path, not the key itself
 - HTTP server binds to `127.0.0.1` only
