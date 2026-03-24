@@ -106,11 +106,15 @@ export function registerWalletManagement(server: MCPServer, ctx: WalletManagemen
 				try {
 					const evmSigner = await ctx.chainManager.getSigner("84532");
 					evmAddress = await evmSigner.getAddress();
-				} catch { /* no EVM key */ }
+				} catch {
+					/* no EVM key */
+				}
 				try {
 					const solSigner = await ctx.chainManager.getSigner("solana-devnet");
 					solanaAddress = await solSigner.getAddress();
-				} catch { /* no Solana key */ }
+				} catch {
+					/* no Solana key */
+				}
 
 				return c.json({
 					switched: true,
