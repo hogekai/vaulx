@@ -18,10 +18,7 @@ export function registerSignBytes(server: MCPServer, ctx: SignBytesCtx) {
 				"Sign arbitrary bytes with the wallet's Ed25519 keypair (Solana only). Input is base64-encoded by default.",
 			input: z.object({
 				message: z.string().describe("The bytes to sign (base64 or hex encoded)"),
-				encoding: z
-					.enum(["base64", "hex"])
-					.optional()
-					.describe("Input encoding (default: base64)"),
+				encoding: z.enum(["base64", "hex"]).optional().describe("Input encoding (default: base64)"),
 			}),
 		},
 		async (args, c) => {

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.0] - 2026-03-25
+
+### Added
+- Multi-chain accounts: `vaulx init` now generates both EVM and Solana keys per wallet
+- `sign_bytes` tool for Ed25519 raw bytes signing (Solana only)
+- `sign_and_send_raw_transaction` tool for signing and submitting arbitrary Solana transactions
+
+### Changed
+- Removed legacy single-key keychain fallback in favor of multi-chain key storage
+
+### Fixed
+- Retry HTTP server when port becomes available after transient bind failure
+- Allow both ETH and SOL in default wallet policy
+- Use dynamic getters in `validateConfig` for keychain compatibility
+- Set `SOLANA_PRIVATE_KEY` from keychain fallback when available
+
 ## [0.7.1] - 2026-03-20
 
 ### Fixed

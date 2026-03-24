@@ -43,7 +43,10 @@ if (envFile) {
 }
 
 // Keychain fallback: load missing keys from OS keychain
-if (process.env.WALLET_MODE !== "browser" && (!process.env.PRIVATE_KEY || !process.env.SOLANA_PRIVATE_KEY)) {
+if (
+	process.env.WALLET_MODE !== "browser" &&
+	(!process.env.PRIVATE_KEY || !process.env.SOLANA_PRIVATE_KEY)
+) {
 	const walletName = process.env.VAULX_WALLET_NAME ?? "default";
 	try {
 		const { loadAllFromKeychain } = await import("./cli/keychain.js");

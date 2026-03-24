@@ -10,23 +10,14 @@ interface SignAndSendRawTxCtx {
 	txLog: TxLog;
 }
 
-export function registerSignAndSendRawTransaction(
-	server: MCPServer,
-	ctx: SignAndSendRawTxCtx,
-) {
+export function registerSignAndSendRawTransaction(server: MCPServer, ctx: SignAndSendRawTxCtx) {
 	server.tool(
 		"sign_and_send_raw_transaction",
 		{
-			description:
-				"Sign a serialized Solana transaction as fee payer and submit to network.",
+			description: "Sign a serialized Solana transaction as fee payer and submit to network.",
 			input: z.object({
-				transaction: z
-					.string()
-					.describe("Base64 encoded serialized Solana Transaction"),
-				chainId: z
-					.string()
-					.optional()
-					.describe("Solana chain (default: current chain)"),
+				transaction: z.string().describe("Base64 encoded serialized Solana Transaction"),
+				chainId: z.string().optional().describe("Solana chain (default: current chain)"),
 			}),
 		},
 		async (args, c) => {
@@ -49,9 +40,7 @@ export function registerSignAndSendRawTransaction(
 
 				const txBytes = Buffer.from(args.transaction, "base64");
 
-				const { Transaction, sendAndConfirmTransaction } = await import(
-					"@solana/web3.js"
-				);
+				const { Transaction, sendAndConfirmTransaction } = await import("@solana/web3.js");
 
 				let tx: InstanceType<typeof Transaction>;
 				try {

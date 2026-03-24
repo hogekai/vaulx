@@ -141,9 +141,7 @@ export async function handleApiRoutes(
 
 			const encoding = (body.encoding as string) ?? "base64";
 			const messageBytes =
-				encoding === "hex"
-					? Buffer.from(message, "hex")
-					: Buffer.from(message, "base64");
+				encoding === "hex" ? Buffer.from(message, "hex") : Buffer.from(message, "base64");
 
 			if (messageBytes.length === 0) {
 				jsonResponse(res, 400, { error: "Empty message" });
@@ -175,7 +173,8 @@ export async function handleApiRoutes(
 				return true;
 			}
 
-			const chainId = resolveChainId(body.chainId as string | undefined) ?? ctx.chainManager.defaultChainId;
+			const chainId =
+				resolveChainId(body.chainId as string | undefined) ?? ctx.chainManager.defaultChainId;
 			if (!isSolanaChain(chainId)) {
 				jsonResponse(res, 500, {
 					error: "sign_and_send_raw_transaction is only available on Solana chains",

@@ -21,7 +21,9 @@ export function startHttpServer(ctx: WalletContext): Promise<void> {
 					// Poll every 5s until the port is free
 					const interval = setInterval(() => {
 						const probe = createServer();
-						probe.once("error", () => { /* still in use */ });
+						probe.once("error", () => {
+							/* still in use */
+						});
 						probe.once("listening", () => {
 							probe.close(() => {
 								clearInterval(interval);
